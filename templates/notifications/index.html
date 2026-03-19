@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-container page-narrow">
+  <div class="page-header">
+    <div>
+      <h1>Notifications</h1>
+      <p class="text-muted">{{ notifs|length }} total</p>
+    </div>
+    {% if notifs %}
+    <button onclick="fetch('/notifications/mark-all-read',{method:'POST'}).then(()=>location.reload())" class="btn btn-outline btn-sm">Mark all read</button>
+    {% endif %}
+  </div>
+  <div class="card notif-list-card">
+    {% if notifs %}
+      {% for n in notifs %}
+      <div class="notif-row {% if not n.is_read %}notif-row-unread{% endif %}"
+           onclick="fetch('/notifications/mark-read/{{ n.id }}',{method:'POST'});{% if n.link %}window.location='{{ n.link }}';{% endif %}">
+        <div class="notif-type-wrap">
+          <span class="notif-type notif-type-{{ n.notif_type or 'info' }}">
+            {{ 'Quiz' if n.notif_type=='quiz' else ('Result' if n.notif_type=='result' else ('Announcement' if n.notif_type=='broadcast' else ('Warning' if n.notif_type=='warning' else 'Info'))) }}
+          </span>
+        </div>
+        <div class="notif-main">
+          <div class="notif-title">{{ n.title }}</div>
+          {% if n.message %}<div class="notif-message small text-muted">{{ n.message }}</div>{% endif %}
+          <div class="notif-time">{{ n.created_at.strftime('%b %d, %Y at %H:%M') }}</div>
+        </div>
+        {% if not n.is_read %}<span class="notif-dot"></span>{% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="notif-empty-page">
+        <p>No notifications yet.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% block title %}Quiz Attempts — {{ quiz.title }}{% endblock %}
+{% block content_inner %}
+<div class="page-header">
+  <div>
+    <h1>📊 Quiz Attempts</h1>
+    <p class="text-muted">{{ quiz.title }} — {{ attempts|length }} attempts</p>
+  </div>
+  <a href="{{ url_for('admin.quiz_list') }}" class="btn btn-ghost btn-sm">← Back</a>
+</div>
+<div class="card" style="padding:0;overflow:hidden">
+  <table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:var(--bg2);font-size:.78rem;font-weight:700;color:var(--text2);text-align:left">
+      <th style="padding:.7rem 1rem">Student</th><th style="padding:.7rem 1rem">Score</th>
+      <th style="padding:.7rem 1rem">Accuracy</th><th style="padding:.7rem 1rem">Time</th>
+      <th style="padding:.7rem 1rem">Violations</th><th style="padding:.7rem 1rem">Status</th>
+      <th style="padding:.7rem 1rem">Submitted</th>
+    </tr></thead>
+    <tbody>
+      {% for a in attempts %}
+      <tr style="border-top:1px solid var(--border){% if a.violations > 0 %};background:var(--red-bg){% endif %}">
+        <td style="padding:.65rem 1rem;font-weight:600;font-size:.88rem">{{ a.user.name }}</td>
+        <td style="padding:.65rem 1rem;font-size:.88rem">{{ a.score }}/{{ a.total_marks }}</td>
+        <td style="padding:.65rem 1rem">
+          <span class="badge badge-{{ 'green' if a.accuracy_pct >= 80 else ('amber' if a.accuracy_pct >= 50 else 'red') }}">{{ a.accuracy_pct|round(1) }}%</span>
+        </td>
+        <td style="padding:.65rem 1rem;font-size:.85rem;color:var(--text2)">{{ (a.time_taken_sec // 60) }}m {{ a.time_taken_sec % 60 }}s</td>
+        <td style="padding:.65rem 1rem">
+          {% if a.violations > 0 %}
+          <span class="badge badge-red" title="Violations">⚠️ {{ a.violations }}</span>
+          {% else %}
+          <span class="badge badge-green">✅ Clean</span>
+          {% endif %}
+        </td>
+        <td style="padding:.65rem 1rem">
+          <span class="badge badge-{{ 'green' if a.status=='completed' else ('amber' if a.status=='in_progress' else 'red') }}">{{ a.status }}</span>
+        </td>
+        <td style="padding:.65rem 1rem;font-size:.78rem;color:var(--text3)">{{ a.submitted_at.strftime('%b %d %H:%M') if a.submitted_at else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;padding:2.5rem;color:var(--text3)">No attempts yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

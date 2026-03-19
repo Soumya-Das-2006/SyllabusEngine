@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Quiz Result{% endblock %}
+{% block content %}
+<div class="page-container page-narrow">
+  {% set pct = attempt.accuracy_pct|int %}
+  {% set color = 'green' if pct >= 80 else ('amber' if pct >= 50 else 'red') %}
+  <div style="text-align:center;margin-bottom:2rem">
+    <div style="font-size:4rem;margin-bottom:.5rem">{{ '🏆' if pct>=80 else ('👍' if pct>=50 else '📚') }}</div>
+    <h1>{{ 'Excellent!' if pct>=80 else ('Good effort!' if pct>=50 else 'Keep practicing!') }}</h1>
+    <div style="font-size:3rem;font-weight:800;color:var(--{{ color }});font-family:'Outfit',sans-serif;margin:.5rem 0">
+      {{ pct }}%
+    </div>
+    <p class="text-muted">{{ attempt.score }} / {{ attempt.total_questions }} correct
+      · {{ (attempt.time_taken_sec//60) }}m {{ attempt.time_taken_sec%60 }}s
+      · <span class="badge badge-{{ 'green' if attempt.difficulty_used=='easy' else ('amber' if attempt.difficulty_used=='medium' else 'red') }}">{{ attempt.difficulty_used }}</span>
+    </p>
+    <div style="margin-top:1rem">
+      <p class="small text-muted">Next recommended difficulty:
+        <span class="badge badge-{{ 'green' if next_difficulty=='easy' else ('amber' if next_difficulty=='medium' else 'red') }}">{{ next_difficulty }}</span>
+      </p>
+    </div>
+  </div>
+
+  {% if cert %}
+  <div class="card card-green" style="max-width:600px;margin:0 auto 1.5rem;display:flex;align-items:center;gap:1rem">
+    <span style="font-size:2.5rem">🎓</span>
+    <div style="flex:1">
+      <div class="bold">Certificate Earned!</div>
+      <div class="small text-muted">{{ cert.cert_number }}</div>
+    </div>
+    <a href="{{ url_for('certificates.download', cert_id=cert.id) }}" class="btn btn-success btn-sm">📥 Download PDF</a>
+  </div>
+  {% endif %}
+
+  <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:2rem">
+    <a href="{{ url_for('quiz.quiz_start') }}" class="btn btn-primary">🔄 Retake / New Quiz</a>
+    <a href="{{ url_for('analytics.dashboard') }}" class="btn btn-outline">📊 Analytics</a>
+    <a href="{{ url_for('quiz.quiz_home') }}" class="btn btn-ghost">← Quiz Home</a>
+  </div>
+
+  <h2 style="margin-bottom:1rem">Question Review</h2>
+  {% for r in result_data %}
+  <div class="card" style="margin-bottom:.85rem;border-color:var(--{{ 'green-b' if r.is_correct else 'red-b' }});
+       background:var(--{{ 'green-bg' if r.is_correct else 'red-bg' }})">
+    <div style="display:flex;align-items:flex-start;gap:.75rem;margin-bottom:.75rem">
+      <span style="font-size:1.2rem;flex-shrink:0">{{ '✅' if r.is_correct else '❌' }}</span>
+      <div>
+        <div class="bold">{{ loop.index }}. {{ r.question }}</div>
+        {% if r.topic_tag %}
+        <span class="badge badge-primary" style="margin-top:.3rem">{{ r.topic_tag }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.75rem">
+      {% for key, text in r.options.items() %}
+      <div style="padding:.45rem .75rem;border-radius:var(--r-sm);font-size:.85rem;
+           background:{% if key==r.correct %} var(--green-bg) {% elif key==r.chosen and not r.is_correct %} var(--red-bg) {% else %} var(--bg2) {% endif %};
+           border:1.5px solid {% if key==r.correct %} var(--green-b) {% elif key==r.chosen and not r.is_correct %} var(--red-b) {% else %} transparent {% endif %}">
+        <strong>{{ key }}.</strong> {{ text }}
+        {% if key == r.correct %} ✓{% endif %}
+        {% if key == r.chosen and not r.is_correct %} ✗{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if r.explanation %}
+    <div style="background:var(--blue-bg);border:1px solid var(--blue-b);border-radius:var(--r-sm);
+         padding:.65rem .85rem;font-size:.85rem;line-height:1.6">
+      💡 <strong>Explanation:</strong> {{ r.explanation }}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

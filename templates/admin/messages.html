@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<div class="admin-page-header">
+  <div>
+    <h1>Contact messages</h1>
+    <p class="text-muted">Messages submitted from the public Contact Us page.</p>
+  </div>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Message</th>
+        <th>Received</th>
+        <th>Status</th>
+        <th style="width:120px"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if messages %}
+        {% for m in messages %}
+        <tr class="{% if not m.is_read %}table-row-unread{% endif %}">
+          <td>{{ m.name }}</td>
+          <td><a href="mailto:{{ m.email }}">{{ m.email }}</a></td>
+          <td>{{ m.message[:140] ~ ('…' if m.message|length > 140 else '') }}</td>
+          <td>{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ 'Read' if m.is_read else 'Unread' }}</td>
+          <td class="text-right">
+            {% if not m.is_read %}
+            <form method="POST" action="{{ url_for('admin.messages_mark_read', message_id=m.id) }}" style="display:inline">
+              <button type="submit" class="btn btn-sm btn-outline">Mark read</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="6" class="text-muted">No messages yet.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

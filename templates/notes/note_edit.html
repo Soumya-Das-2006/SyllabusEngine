@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if note else 'New' }} Note{% endblock %}
+{% block content %}
+<div class="page-container page-narrow">
+  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem">
+    <a href="{{ url_for('notes.index') }}" class="btn btn-ghost btn-sm">← Back</a>
+    <h1>{{ 'Edit Note' if note else 'New Note' }}</h1>
+  </div>
+  <div class="card">
+    <form method="POST">
+      <div class="form-group">
+        <label class="form-label">Title *</label>
+        <input type="text" name="title" class="form-input" required autofocus
+               value="{{ note.title if note else '' }}" placeholder="Note title">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subject (optional)</label>
+        <select name="subject_id" class="form-input">
+          <option value="">— No subject —</option>
+          {% for s in subjects %}
+            <option value="{{ s.id }}" {% if note and note.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Content</label>
+        <textarea name="content" class="form-input" style="min-height:240px"
+                  placeholder="Write your notes here…">{{ note.content if note else '' }}</textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="form-group">
+          <label class="form-label">Tags (comma-separated)</label>
+          <input type="text" name="tags" class="form-input"
+                 value="{{ note.tags if note else '' }}" placeholder="e.g. lecture, chapter-3">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Card Color</label>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.4rem">
+            {% for color in ['#ffffff','#fef9c3','#dcfce7','#dbeafe','#fce7f3','#ede9fe'] %}
+            <label style="cursor:pointer">
+              <input type="radio" name="color" value="{{ color }}"
+                     {% if (note and note.color == color) or (not note and color == '#ffffff') %}checked{% endif %}
+                     style="display:none">
+              <div style="width:26px;height:26px;border-radius:6px;background:{{ color }};
+                   border:2px solid var(--border);cursor:pointer"
+                   onclick="this.previousElementSibling.checked=true;
+                     document.querySelectorAll('.color-check').forEach(x=>x.style.opacity='0');
+                     this.querySelector('.color-check').style.opacity='1'">
+                <span class="color-check" style="display:block;text-align:center;line-height:22px;font-size:.7rem;
+                  opacity:{{ '1' if (note and note.color == color) or (not note and color == '#ffffff') else '0' }}">✓</span>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:.75rem">
+        <button type="submit" class="btn btn-primary">{{ 'Save Changes' if note else 'Create Note' }}</button>
+        <a href="{{ url_for('notes.index') }}" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1>🏆 Leaderboard</h1>
+      <p class="text-muted">Top quiz performers — updated live</p>
+    </div>
+    <form method="GET" style="display:flex;gap:.5rem;align-items:center">
+      <select name="subject_id" class="form-group" style="width:180px;padding:.45rem .8rem;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--text);font-family:'Inter',sans-serif;font-size:.88rem" onchange="this.form.submit()">
+        <option value="">🌐 All Subjects</option>
+        {% for s in subjects %}<option value="{{ s.id }}" {% if subject_id==s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% if my_rank %}
+  <div class="card card-blue" style="margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem">
+    <span style="font-size:2rem">📍</span>
+    <div>
+      <div class="bold">Your Position</div>
+      <div style="font-size:1.75rem;font-weight:800;color:var(--primary)">#{{ my_rank }}</div>
+    </div>
+    <div class="small text-muted" style="margin-left:auto">Keep taking quizzes to climb the ranks!</div>
+  </div>
+  {% endif %}
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="lb-grid">
+      {% for user, avg, total, best in rankings %}
+      {% set rank_cls = 'lb-rank-1' if loop.index==1 else ('lb-rank-2' if loop.index==2 else ('lb-rank-3' if loop.index==3 else 'lb-rank-n')) %}
+      <div class="lb-row {% if user.id == current_user.id %}lb-me{% endif %}">
+        <div class="lb-rank {{ rank_cls }}">{{ loop.index }}</div>
+        <div class="lb-avatar">{{ user.name[0].upper() }}</div>
+        <div style="flex:1;min-width:0">
+          <div class="bold" style="font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ user.name }}{% if user.id == current_user.id %} <span class="badge badge-purple">You</span>{% endif %}
+          </div>
+          <div class="small text-muted">{{ user.college or '' }}{% if user.course %} · {{ user.course }}{% endif %}</div>
+        </div>
+        <div style="text-align:center;min-width:60px">
+          <div class="bold" style="font-size:.78rem;color:var(--text3)">QUIZZES</div>
+          <div class="bold">{{ total }}</div>
+        </div>
+        <div style="text-align:center;min-width:70px">
+          <div class="bold" style="font-size:.78rem;color:var(--text3)">BEST</div>
+          <div class="bold" style="color:var(--green)">{{ best|round(1) }}%</div>
+        </div>
+        <div style="text-align:center;min-width:80px">
+          <div class="bold" style="font-size:.78rem;color:var(--text3)">AVG SCORE</div>
+          <div style="font-size:1.35rem;font-weight:800;color:var(--primary)">{{ avg|round(1) }}%</div>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding:3rem;text-align:center">
+        <div style="font-size:3rem;margin-bottom:1rem">🏆</div>
+        <p>No quiz attempts yet. <a href="{{ url_for('quiz.quiz_home') }}">Take a quiz</a> to appear here!</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

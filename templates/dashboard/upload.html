@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Upload Syllabus{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block content %}
+
+<div class="page-container page-narrow">
+  <div class="page-header">
+    <div>
+      <h1>Upload Syllabus</h1>
+      <p class="text-muted">AI will extract every topic, deadline, and exam — then build your complete study plan.</p>
+    </div>
+    <a href="{{ url_for('dashboard.index') }}" class="btn btn-ghost">← Dashboard</a>
+  </div>
+
+  <div class="upload-card">
+    <form method="POST" action="{{ url_for('upload.process_upload') }}"
+          enctype="multipart/form-data" id="upload-form">
+
+      <!-- Step 1: Subject -->
+      <div class="upload-section">
+        <h3>Step 1 — Select subject</h3>
+        <div class="form-row">
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Subject *</label>
+            <select name="subject_id" id="subject-select" required>
+              <option value="">— Choose a subject —</option>
+              {% for s in subjects %}
+              <option value="{{ s.id }}"
+                {% if selected and selected.id == s.id %}selected{% endif %}>
+                {{ s.name }} ({{ s.semester_length }}w)
+              </option>
+              {% endfor %}
+            </select>
+            <span class="form-hint">
+              Don't see your subject?
+              <a href="{{ url_for('subjects.index') }}">Add it first →</a>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Course Info -->
+      <div class="upload-section">
+        <h3>Step 2 — Course info</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Course start date</label>
+            <input type="date" name="start_date"
+                   value="{% if selected and selected.start_date %}{{ selected.start_date.isoformat() }}{% endif %}">
+            <span class="form-hint">Converts "Week 3" to real calendar dates. Very important.</span>
+          </div>
+          <div class="form-group">
+            <label>Semester length</label>
+            <select name="semester_length">
+              <option value="8">8 weeks</option>
+              <option value="10">10 weeks</option>
+              <option value="12">12 weeks</option>
+              <option value="14">14 weeks</option>
+              <option value="15" {% if not selected or selected.semester_length == 15 %}selected{% endif %}>15 weeks</option>
+              <option value="16" {% if selected and selected.semester_length == 16 %}selected{% endif %}>16 weeks</option>
+              <option value="18" {% if selected and selected.semester_length == 18 %}selected{% endif %}>18 weeks</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: PDF Upload -->
+      <div class="upload-section">
+        <h3>Step 3 — Upload PDF</h3>
+        <div class="dropzone" id="dropzone">
+          <input type="file" name="file" id="file-input" accept=".pdf" required style="display:none">
+          <div class="dropzone-content" id="dropzone-content">
+            <div class="dropzone-icon">📄</div>
+            <p class="dropzone-text">Drag & drop your syllabus PDF here</p>
+            <p class="dropzone-sub">or click anywhere to browse files</p>
+            <button type="button" class="btn btn-outline btn-sm"
+                    onclick="event.stopPropagation();document.getElementById('file-input').click()">
+              Choose File
+            </button>
+          </div>
+          <div class="dropzone-selected" id="dropzone-selected">
+            <div class="dropzone-icon">✅</div>
+            <p id="selected-filename" class="dropzone-text"></p>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="clearFile()">Change file</button>
+          </div>
+        </div>
+
+        <div class="upload-tips">
+          <strong>Tips for best results:</strong>
+          <ul>
+            <li>Digital text-based PDFs extract best. Scanned PDFs are supported via OCR.</li>
+            <li>Make sure the PDF is not password-protected.</li>
+            <li>Works with table-format and paragraph-format syllabi.</li>
+            <li>Add the course start date for accurate week-to-date conversion.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- What happens next -->
+      <div style="background:var(--primary-ll);border:1px solid #c7d2fe;border-radius:var(--r-sm);
+                  padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:.85rem;color:var(--text2)">
+        <strong style="color:var(--primary)">What happens after you click Analyze:</strong>
+        <ol style="margin-top:.4rem;padding-left:1.25rem;list-style:decimal">
+          <li>Text is extracted from your PDF (OCR if scanned)</li>
+          <li>AI Pass 1: extracts all facts — topics, assignments, exams, dates</li>
+          <li>AI Pass 2: builds your structured week-by-week plan</li>
+          <li><strong>You review and confirm</strong> every deadline before anything is saved</li>
+        </ol>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full btn-xl" id="submit-btn">
+        🚀 Analyze Syllabus with AI
+      </button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dropzone  = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+
+dropzone.addEventListener('click', e => {
+  if (!e.target.closest('button')) fileInput.click();
+});
+dropzone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropzone.classList.add('dragover');
+});
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') {
+    fileInput.files = e.dataTransfer.files;
+    showSelected(f.name);
+  } else if (f) {
+    alert('Please upload a PDF file.');
+  }
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) showSelected(fileInput.files[0].name);
+});
+function showSelected(name) {
+  document.getElementById('dropzone-content').style.display = 'none';
+  const sel = document.getElementById('dropzone-selected');
+  sel.style.display = 'flex';
+  document.getElementById('selected-filename').textContent = name;
+}
+function clearFile() {
+  fileInput.value = '';
+  document.getElementById('dropzone-content').style.display = 'flex';
+  document.getElementById('dropzone-selected').style.display = 'none';
+}
+document.getElementById('upload-form').addEventListener('submit', () => {
+  const btn = document.getElementById('submit-btn');
+  btn.textContent = '⏳ Uploading & analyzing...';
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

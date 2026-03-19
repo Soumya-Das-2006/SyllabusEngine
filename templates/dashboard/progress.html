@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Progress — {{ subject.name }}{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block content %}
+
+<div class="page-container">
+
+  <!-- ── PAGE HEADER ── -->
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">
+        <a href="{{ url_for('subjects.index') }}">Subjects</a> /
+        <a href="{{ url_for('study_plan.week_grid', subject_id=subject.id) }}">{{ subject.name }}</a> /
+        Progress
+      </div>
+      <h1>Progress Tracker</h1>
+      <p class="text-muted">{{ subject.name }} · {{ subject.semester_length }}-week plan</p>
+    </div>
+    <div class="page-header-actions">
+      <a href="{{ url_for('study_plan.week_grid', subject_id=subject.id) }}" class="btn btn-outline">
+        ← Week Grid
+      </a>
+      <a href="{{ url_for('assistant.chat_page', subject_id=subject.id) }}" class="btn btn-ghost">
+        🤖 Ask Kai
+      </a>
+    </div>
+  </div>
+
+  <!-- ── OVERVIEW STATS ── -->
+  <div class="progress-overview">
+    <div class="progress-stat-card">
+      <div class="big-num" style="color:var(--primary)">{{ subject.completion_pct }}%</div>
+      <div class="stat-label" style="margin-top:4px">Overall Completion</div>
+      <div class="progress-bar-wrap big" style="margin-top:.75rem">
+        <div class="progress-bar" style="width:{{ subject.completion_pct }}%;background:{{ subject.color }}"></div>
+      </div>
+    </div>
+
+    <div class="progress-stat-card">
+      <div class="big-num" style="color:var(--green)">{{ completed_assignments }}</div>
+      <div class="stat-label" style="margin-top:4px">Assignments Done</div>
+      <div style="font-size:.82rem;color:var(--text3);margin-top:6px">of {{ total_assignments }} total</div>
+      {% if total_assignments > 0 %}
+      <div class="progress-bar-wrap big" style="margin-top:.75rem">
+        <div class="progress-bar"
+             style="width:{{ ((completed_assignments / total_assignments) * 100)|int }}%;background:var(--green)">
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="progress-stat-card">
+      <div class="big-num" style="color:var(--amber)">{{ weeks|length }}</div>
+      <div class="stat-label" style="margin-top:4px">Total Weeks</div>
+      <div style="font-size:.82rem;color:var(--text3);margin-top:6px">
+        {% set heavy_weeks = weeks|selectattr('is_exam_week')|list|length %}
+        {{ heavy_weeks }} exam week{% if heavy_weeks != 1 %}s{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DIFFICULTY BREAKDOWN ── -->
+  {% if weeks %}
+  {% set easy_count  = weeks|selectattr('difficulty','equalto','easy')|list|length %}
+  {% set med_count   = weeks|selectattr('difficulty','equalto','medium')|list|length %}
+  {% set hard_count  = weeks|selectattr('difficulty','equalto','hard')|list|length %}
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+              padding:1.25rem;margin-bottom:1.5rem;display:flex;gap:2rem;flex-wrap:wrap">
+    <div style="font-weight:600;font-size:.88rem;color:var(--text2);align-self:center">Workload breakdown:</div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:.85rem">
+      <span class="difficulty-chip difficulty-easy">easy</span>
+      <strong>{{ easy_count }}</strong> week{% if easy_count != 1 %}s{% endif %}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:.85rem">
+      <span class="difficulty-chip difficulty-medium">medium</span>
+      <strong>{{ med_count }}</strong> week{% if med_count != 1 %}s{% endif %}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:.85rem">
+      <span class="difficulty-chip difficulty-hard">hard</span>
+      <strong>{{ hard_count }}</strong> week{% if hard_count != 1 %}s{% endif %}
+    </div>
+    <div style="margin-left:auto;font-size:.82rem;color:var(--text2)">
+      Total study hours: <strong>{{ weeks|sum(attribute='recommended_hours') }}h</strong>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── WEEK BY WEEK LIST ── -->
+  <div class="section-block">
+    <h2 class="section-heading">Week-by-Week Progress</h2>
+    {% if weeks %}
+    <div class="weeks-progress-list">
+      {% for w in weeks %}
+      <div class="wpl-item">
+        <a href="{{ url_for('study_plan.week_detail', subject_id=subject.id, week_num=w.week_number) }}"
+           class="wpl-link">
+          <span class="wpl-num">Week {{ w.week_number }}</span>
+          {% if w.date_start %}
+            <span class="wpl-date">{{ w.date_start.strftime('%b %d') }}</span>
+          {% else %}
+            <span class="wpl-date" style="color:transparent">——</span>
+          {% endif %}
+          <div class="wpl-bar-wrap">
+            <div class="wpl-bar" style="width:{{ w.completion_pct }}%"></div>
+          </div>
+          <span class="wpl-pct">{{ w.completion_pct }}%</span>
+          <span class="wpl-difficulty difficulty-{{ w.difficulty }}">{{ w.difficulty }}</span>
+          {% if w.is_exam_week %}
+            <span class="badge badge-red" style="font-size:.62rem">EXAM</span>
+          {% endif %}
+          <span style="font-size:.72rem;color:var(--text3)">→</span>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:2rem">
+      <p class="text-muted">No weeks found. Upload a syllabus to generate your study plan.</p>
+      <a href="{{ url_for('upload.upload_page', subject_id=subject.id) }}" class="btn btn-primary" style="margin-top:1rem">
+        Upload Syllabus →
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,22 @@
+<div class="note-card" style="background:{{ n.color or '#ffffff' }}">
+  {% if n.is_pinned %}<div class="pin-badge">Pinned</div>{% endif %}
+  <div class="note-card-title">{{ n.title }}</div>
+  <div class="note-card-body">{{ n.content|striptags|truncate(120) }}</div>
+  <div class="note-card-footer">
+    <span>{{ n.updated_at.strftime('%b %d') }}{% if n.subject %} · {{ n.subject.name|truncate(20) }}{% endif %}</span>
+    <div class="note-card-actions">
+      <button onclick="pinNote({{ n.id }})" class="btn btn-ghost btn-sm" title="{{ 'Unpin' if n.is_pinned else 'Pin' }}">
+        {{ 'Unpin' if n.is_pinned else 'Pin' }}
+      </button>
+      <a href="{{ url_for('notes.edit', note_id=n.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+      <button onclick="deleteNote({{ n.id }})" class="btn btn-ghost btn-sm note-delete-btn">Delete</button>
+    </div>
+  </div>
+  {% if n.get_tags() %}
+  <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.5rem">
+    {% for tag in n.get_tags()[:3] %}
+    <span class="note-tag">{{ tag }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>

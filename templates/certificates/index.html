@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}My Certificates{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1>🎓 My Certificates</h1>
+      <p class="text-muted">{{ certs|length }} certificate{{ 's' if certs|length!=1 }} earned</p>
+    </div>
+  </div>
+  {% if certs %}
+  <div class="cert-grid">
+    {% for c in certs %}
+    <div class="cert-card">
+      <span class="cert-icon">🏅</span>
+      <h3 style="margin-bottom:.4rem;font-size:1rem">{{ c.title }}</h3>
+      <div class="cert-number">{{ c.cert_number }}</div>
+      <div class="small text-muted" style="margin-top:.5rem">Issued {{ c.issued_at.strftime('%B %d, %Y') }}</div>
+      <a href="{{ url_for('certificates.download', cert_id=c.id) }}" class="btn btn-primary btn-sm" style="margin-top:1rem">
+        📥 Download PDF
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card" style="text-align:center;padding:3rem">
+    <div style="font-size:4rem;margin-bottom:1rem">🎓</div>
+    <h2 style="margin-bottom:.5rem">No certificates yet</h2>
+    <p class="text-muted" style="margin-bottom:1.5rem">Pass quizzes to automatically earn certificates!</p>
+    <a href="{{ url_for('quiz.quiz_home') }}" class="btn btn-primary">🧪 Take a Quiz</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

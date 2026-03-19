@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}News &amp; Updates{% endblock %}
+{% block body_class %}page-public{% endblock %}
+{% block content %}
+<div class="page-container">
+  <header class="page-header">
+    <div>
+      <h1>News &amp; Updates</h1>
+      <p class="text-muted">Announcements, feature launches, and platform news.</p>
+    </div>
+  </header>
+
+<div class="lp-news-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    {% if news_items %}
+      {% for n in news_items %}
+      <article class="lp-news-card glass-card group hover:neon-glow">
+        {% if n.image_url %}
+        <div class="lp-news-image" style="background-image: url(&quot;{{ url_for('static', filename=n.image_url) }}&quot;);"></div>
+        {% endif %}
+        <div class="lp-news-body">
+          <p class="lp-news-date">{{ n.created_at.strftime('%b %d, %Y') }}</p>
+          <h2 class="lp-news-title">
+            <a href="{{ url_for('public.news_detail', news_id=n.id) }}">{{ n.title }}</a>
+          </h2>
+          <p class="lp-news-summary">{{ n.summary or n.content[:200] ~ ('…' if n.content|length > 200 else '') }}</p>
+          <a href="{{ url_for('public.news_detail', news_id=n.id) }}" class="lp-news-link">Read more →</a>
+        </div>
+      </article>
+      {% endfor %}
+    {% else %}
+      <p class="text-muted">No news yet.</p>
+    {% endif %}
+  </div>
+
+  {% if pagination %}
+  <nav class="pagination-nav">
+    <ul class="pagination">
+      {% if pagination.has_prev %}
+      <li><a href="{{ url_for('public.news_list', page=pagination.prev_num) }}">← Newer</a></li>
+      {% endif %}
+      <li class="disabled"><span>Page {{ pagination.page }} of {{ pagination.pages }}</span></li>
+      {% if pagination.has_next %}
+      <li><a href="{{ url_for('public.news_list', page=pagination.next_num) }}">Older →</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

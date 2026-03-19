@@ -1,0 +1,41 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<div class="admin-page-header">
+  <div>
+    <h1>Testimonials</h1>
+    <p class="text-muted">Manage student stories shown on the public site.</p>
+  </div>
+  <a href="{{ url_for('admin.testimonials_add') }}" class="btn btn-primary">+ Add testimonial</a>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Feedback</th>
+        <th>Created</th>
+        <th style="width:120px"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if testimonials %}
+        {% for t in testimonials %}
+        <tr>
+          <td>{{ t.name }}</td>
+          <td>{{ t.feedback[:120] ~ ('…' if t.feedback|length > 120 else '') }}</td>
+          <td>{{ t.created_at.strftime('%Y-%m-%d') }}</td>
+          <td class="text-right">
+            <form method="POST" action="{{ url_for('admin.testimonials_delete', testimonial_id=t.id) }}" style="display:inline" onsubmit="return confirm('Delete this testimonial?')">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="4" class="text-muted">No testimonials yet.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

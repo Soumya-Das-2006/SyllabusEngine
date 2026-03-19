@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: syllabus-engine
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "app:create_app()" --workers 2 --bind 0.0.0.0:$PORT --timeout 120
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: syllabus-engine-db
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+databases:
+  - name: syllabus-engine-db
+    databaseName: syllabus_engine
+    user: syllabus_user

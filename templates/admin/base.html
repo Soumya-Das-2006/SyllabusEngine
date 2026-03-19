@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block body_class %}page-admin{% endblock %}
+{% block content %}
+<div class="admin-layout">
+  <nav class="admin-sidebar">
+    <div class="admin-sidebar-header">
+      <span style="font-size:1rem">🛡️</span> Admin Panel
+    </div>
+    <div class="admin-nav-section">Overview</div>
+    <a href="{{ url_for('admin.index') }}" class="admin-nav-link {% if request.endpoint == 'admin.index' %}active{% endif %}">📊 Dashboard</a>
+    <a href="{{ url_for('admin.search') }}" class="admin-nav-link {% if request.endpoint == 'admin.search' %}active{% endif %}">🔍 Global Search</a>
+
+    <div class="admin-nav-section">Students</div>
+    <a href="{{ url_for('admin.users') }}" class="admin-nav-link {% if request.endpoint in ['admin.users','admin.user_detail'] %}active{% endif %}">👥 All Students</a>
+    <a href="{{ url_for('attendance.overview') }}" class="admin-nav-link {% if request.endpoint and request.endpoint.startswith('attendance.') %}active{% endif %}">📋 Attendance</a>
+
+    <div class="admin-nav-section">Content</div>
+    <a href="{{ url_for('admin.syllabi') }}" class="admin-nav-link {% if request.endpoint == 'admin.syllabi' %}active{% endif %}">📄 Syllabi</a>
+    <a href="{{ url_for('admin.failed_parses') }}" class="admin-nav-link {% if request.endpoint == 'admin.failed_parses' %}active{% endif %}">❌ Failed Parses</a>
+    <a href="{{ url_for('admin.news_list') }}" class="admin-nav-link {% if request.endpoint in ['admin.news_list','admin.news_add','admin.news_edit'] %}active{% endif %}">📢 News &amp; Updates</a>
+    <a href="{{ url_for('admin.testimonials_list') }}" class="admin-nav-link {% if request.endpoint in ['admin.testimonials_list','admin.testimonials_add'] %}active{% endif %}">💬 Testimonials</a>
+    <a href="{{ url_for('admin.messages') }}" class="admin-nav-link {% if request.endpoint == 'admin.messages' %}active{% endif %}">📨 Contact Messages</a>
+
+    <div class="admin-nav-section">Quizzes</div>
+    <a href="{{ url_for('admin.quiz_list') }}" class="admin-nav-link {% if request.endpoint in ['admin.quiz_list','admin.quiz_create'] %}active{% endif %}">🧪 All Quizzes</a>
+    <a href="{{ url_for('admin.quiz_create') }}" class="admin-nav-link {% if request.endpoint == 'admin.quiz_create' %}active{% endif %}">+ Create Quiz</a>
+
+    <div class="admin-nav-section">Monitoring</div>
+    <a href="{{ url_for('admin.chat_monitor') }}" class="admin-nav-link {% if request.endpoint == 'admin.chat_monitor' %}active{% endif %}">💬 Chat Monitor</a>
+    <a href="{{ url_for('admin.logs') }}" class="admin-nav-link {% if request.endpoint == 'admin.logs' %}active{% endif %}">🧾 Activity Logs</a>
+  </nav>
+  <main class="admin-main">
+    {% block admin_content %}{% endblock %}
+    {% block content_inner %}{% endblock %}
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "admin/base.html" %}
+{% block title %}Manage Attendance{% endblock %}
+{% block content_inner %}
+<div class="page-header">
+  <div><h1>📋 Attendance Management</h1></div>
+  <a href="{{ url_for('attendance.overview') }}" class="btn btn-outline btn-sm">📊 Overview</a>
+</div>
+<div style="display:grid;grid-template-columns:340px 1fr;gap:1.25rem;align-items:start">
+  <!-- Create session -->
+  <div class="card">
+    <h3 style="margin-bottom:1rem">+ Create Attendance Session</h3>
+    <form method="POST" action="{{ url_for('attendance.create_session') }}">
+      <div class="form-group"><label>Session Title</label><input type="text" name="title" value="Class" required></div>
+      <div class="form-group"><label>Date</label><input type="date" name="date" value="{{ today }}" required></div>
+      <div class="form-group"><label>Subject (optional)</label>
+        <select name="subject_id"><option value="">— General —</option>
+          {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Create Session</button>
+    </form>
+  </div>
+  <!-- Session list -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:.85rem 1rem;border-bottom:1px solid var(--border);font-weight:700;font-size:.9rem">Recent Sessions</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:var(--bg2);font-size:.78rem;font-weight:700;color:var(--text2);text-align:left">
+        <th style="padding:.6rem 1rem">Date</th><th style="padding:.6rem 1rem">Title</th>
+        <th style="padding:.6rem 1rem">Subject</th><th style="padding:.6rem 1rem">Students</th>
+        <th style="padding:.6rem 1rem">Actions</th>
+      </tr></thead>
+      <tbody>
+        {% for sess in sessions %}
+        <tr style="border-top:1px solid var(--border)">
+          <td style="padding:.6rem 1rem;font-size:.87rem;font-weight:600">{{ sess.date.strftime('%b %d, %Y') }}</td>
+          <td style="padding:.6rem 1rem;font-size:.87rem">{{ sess.title }}</td>
+          <td style="padding:.6rem 1rem;font-size:.85rem;color:var(--text2)">{{ sess.subject.name if sess.subject else '—' }}</td>
+          <td style="padding:.6rem 1rem;font-size:.85rem">{{ sess.records.count() }}</td>
+          <td style="padding:.6rem 1rem">
+            <a href="{{ url_for('attendance.session_detail', session_id=sess.id) }}" class="btn btn-primary btn-sm">Mark</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text3)">No sessions yet. Create one above.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

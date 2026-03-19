@@ -1,0 +1,77 @@
+{% extends "admin/base.html" %}
+{% block title %}Mark Attendance — {{ sess.title }}{% endblock %}
+{% block content_inner %}
+<div class="page-header">
+  <div>
+    <h1>✅ Mark Attendance</h1>
+    <p class="text-muted">{{ sess.title }} — {{ sess.date.strftime('%B %d, %Y') }}{% if sess.subject %} · {{ sess.subject.name }}{% endif %}</p>
+  </div>
+  <a href="{{ url_for('attendance.admin_view') }}" class="btn btn-ghost btn-sm">← Back</a>
+</div>
+<div class="card" style="padding:0;overflow:hidden">
+  <table style="width:100%;border-collapse:collapse" id="att-table">
+    <thead><tr style="background:var(--bg2);font-size:.78rem;font-weight:700;color:var(--text2);text-align:left">
+      <th style="padding:.65rem 1rem">Student</th>
+      <th style="padding:.65rem 1rem">Status</th>
+      <th style="padding:.65rem 1rem">Note</th>
+    </tr></thead>
+    <tbody>
+      {% for student in students %}
+      {% set rec = rec_map.get(student.id) %}
+      <tr style="border-top:1px solid var(--border)" id="row-{{ student.id }}">
+        <td style="padding:.65rem 1rem">
+          <div class="bold" style="font-size:.88rem">{{ student.name }}</div>
+          <div class="small text-muted">{{ student.email }}</div>
+        </td>
+        <td style="padding:.65rem 1rem">
+          <div style="display:flex;gap:.4rem">
+            {% for status, label, cls in [('present','✅ Present','green'),('late','⏰ Late','amber'),('absent','❌ Absent','red')] %}
+            <button onclick="markAtt({{ student.id }},'{{ status }}')"
+                    id="btn-{{ student.id }}-{{ status }}"
+                    class="btn btn-sm att-status-btn {% if rec and rec.status == status %}att-status-{{ status }}{% else %}btn-outline{% endif %}"
+                    style="min-width:90px">{{ label }}</button>
+            {% endfor %}
+          </div>
+        </td>
+        <td style="padding:.65rem 1rem">
+          <input type="text" id="note-{{ student.id }}" class="form-input" style="padding:.35rem .6rem;font-size:.82rem;width:150px"
+                 value="{{ rec.note if rec else '' }}" placeholder="Optional note"
+                 onblur="markAtt({{ student.id }}, document.getElementById('btn-active-{{ student.id }}')?.dataset?.status || '{{ rec.status if rec else 'present' }}')">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div style="margin-top:1rem;display:flex;gap:.75rem">
+  <button onclick="markAll('present')" class="btn btn-success btn-sm">✅ Mark All Present</button>
+  <button onclick="markAll('absent')" class="btn btn-danger btn-sm">❌ Mark All Absent</button>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const SESSION_ID = {{ sess.id }};
+function markAtt(uid, status) {
+  const note = document.getElementById('note-'+uid)?.value || '';
+  fetch(`/attendance/admin/session/${SESSION_ID}/mark`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({user_id:uid, status, note})
+  }).then(r=>r.json()).then(d=>{
+    if (d.ok) {
+      ['present','late','absent'].forEach(s => {
+        const btn = document.getElementById(`btn-${uid}-${s}`);
+        btn.className = `btn btn-sm att-status-btn ${s===status ? 'att-status-'+s : 'btn-outline'}`;
+        btn.dataset.status = s;
+        if (s===status) btn.id = `btn-active-${uid}`;
+      });
+    }
+  });
+}
+function markAll(status) {
+  document.querySelectorAll('[id^="btn-"][id*="-present"]').forEach(btn => {
+    const uid = btn.id.split('-')[1];
+    markAtt(parseInt(uid), status);
+  });
+}
+</script>
+{% endblock %}

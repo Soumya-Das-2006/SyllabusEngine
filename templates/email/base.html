@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f3f4f6;font-family:'Inter',Arial,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f4f6;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+            <tr>
+              <td align="center" style="padding:24px 24px 16px 24px;background:linear-gradient(135deg,#0ea5e9 0%,#6366f1 40%,#8b5cf6 100%);">
+                <img src="{{ logo_url }}" alt="{{ app_name }}" style="display:block;height:56px;width:auto;margin-bottom:12px;">
+                <div style="color:#e5e7eb;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;">{{ app_name }}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 24px 8px 24px;">
+                {% block content %}{% endblock %}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 24px 20px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#6b7280;">
+                This is an automated email from {{ app_name }}. Please do not reply.<br>
+                If you did not request this, you can safely ignore this message.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

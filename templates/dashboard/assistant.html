@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Ask Kai{% if subject %} — {{ subject.name }}{% endif %}{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block content %}
+
+<!-- Sub-navbar for chat page -->
+<nav class="study-nav">
+  <div class="study-nav-inner">
+    <a href="{{ url_for('dashboard.index') }}" class="study-nav-back">← Dashboard</a>
+    <h2 class="study-nav-title">Ask Kai</h2>
+    <div class="study-nav-right">
+      <a href="{{ url_for('assistant.ai_assist_page') }}" class="btn btn-outline btn-sm">
+        📚 Study Material
+      </a>
+      <div class="kai-badge">
+        <span class="kai-badge-icon">🤖</span>
+        <span>Kai AI</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="assistant-layout">
+  <div class="assistant-header">
+    <div class="kai-profile">
+      <div class="kai-avatar-lg">🤖</div>
+      <div>
+        <h1>Kai — Your Study Buddy</h1>
+        <p class="text-muted">
+          {% if subject %}
+            Currently studying: <strong>{{ subject.name }}</strong>
+          {% else %}
+            Select a subject to start chatting with Kai.
+          {% endif %}
+        </p>
+
+        {% if subjects %}
+        <div style="margin-top:.35rem;max-width:260px">
+          <label for="subject-select" class="small" style="display:block;margin-bottom:2px;color:var(--text3)">
+            Switch subject
+          </label>
+            {% set base_url = url_for('assistant.chat_page', subject_id=0) %}
+            <select id="subject-select"
+              data-url-template="{{ base_url }}"
+              onchange="onSubjectChange(this)"
+              style="width:100%">
+            <option value="">Choose a subject</option>
+            {% for s in subjects %}
+              <option value="{{ s.id }}" {% if subject and subject.id == s.id %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="quick-prompts">
+      <button class="qp-btn" onclick="sendQuick('Explain this week\'s topics simply')">Explain topics</button>
+      <button class="qp-btn" onclick="sendQuick('Quiz me on this week\'s material')">Quiz me</button>
+      <button class="qp-btn" onclick="sendQuick('How should I prepare for my next exam?')">Exam prep</button>
+      <button class="qp-btn" onclick="sendQuick('What should I focus on today?')">Today\'s focus</button>
+    </div>
+  </div>
+
+  <div class="chat-container" id="chat-container">
+    <!-- Intro message -->
+    <div class="chat-message assistant">
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-bubble">
+        {% if not subject %}
+        <p>Hi {{ current_user.name.split()[0] }}! Please create/select a subject first, then ask your question.</p>
+        {% else %}
+        <p>Hey {{ current_user.name.split()[0] }}! I'm Kai, your AI study buddy for <strong>{{ subject.name }}</strong>. 👋</p>
+        <p>I know your syllabus, your topics, your deadlines, and upcoming exams. Ask me anything — I'm here to help you succeed!</p>
+        <p>Try: <em>"Explain this week's topics"</em>, <em>"Quiz me"</em>, or <em>"Help me prep for the exam"</em></p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% for msg in history %}
+    <div class="chat-message {{ msg.role }}">
+      {% if msg.role == 'assistant' %}<div class="msg-avatar">🤖</div>{% endif %}
+      <div class="msg-bubble">{{ msg.message | replace('\n', '<br>') | safe }}</div>
+      {% if msg.role == 'user' %}<div class="msg-avatar user-av">{{ current_user.name[0].upper() }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="chat-input-wrap">
+    <div class="chat-input-row">
+      <textarea id="chat-input" class="chat-input" placeholder="Ask Kai anything about {% if subject %}{{ subject.name }}{% else %}your subject{% endif %}..."
+                rows="1" onkeydown="handleKey(event)"></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()">
+        <span id="send-icon">➤</span>
+      </button>
+    </div>
+    <div class="chat-disclaimer">Kai knows your syllabus context. Responses are AI-generated — always verify important dates.</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const subjectId = {{ subject.id if subject else 'null' }};
+const container = document.getElementById('chat-container');
+container.scrollTop = container.scrollHeight;
+
+function onSubjectChange(selectEl) {
+  const id = selectEl.value;
+  if (!id) return;
+  const tmpl = selectEl.dataset.urlTemplate;
+  if (!tmpl) return;
+  const url = tmpl.replace('/0', '/' + id);
+  window.location.href = url;
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function sendQuick(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+
+async function sendMessage() {
+  if (!subjectId) {
+    appendMessage('assistant', 'Please select a subject first so I can save your chat.');
+    return;
+  }
+
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  appendMessage('user', msg);
+  input.value = '';
+  input.style.height = 'auto';
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  document.getElementById('send-icon').textContent = '⏳';
+
+  // Typing indicator
+  const typingId = appendTyping();
+
+  try {
+    const res = await fetch('/api/assistant/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ subject_id: subjectId, message: msg })
+    });
+    const data = await res.json();
+    removeTyping(typingId);
+    if (data.response) {
+      appendMessage('assistant', data.response);
+    } else {
+      appendMessage('assistant', '❌ Sorry, something went wrong. Please try again.');
+    }
+  } catch(e) {
+    removeTyping(typingId);
+    appendMessage('assistant', '❌ Connection error. Please check your internet and try again.');
+  }
+
+  btn.disabled = false;
+  document.getElementById('send-icon').textContent = '➤';
+}
+
+function appendMessage(role, text) {
+  const div = document.createElement('div');
+  div.className = `chat-message ${role}`;
+  const formatted = text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  if (role === 'assistant') {
+    div.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-bubble">${formatted}</div>`;
+  } else {
+    div.innerHTML = `<div class="msg-bubble">${formatted}</div><div class="msg-avatar user-av">{{ current_user.name[0].upper() }}</div>`;
+  }
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  const id = 'typing-' + Date.now();
+  const div = document.createElement('div');
+  div.id = id;
+  div.className = 'chat-message assistant';
+  div.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-bubble typing-indicator"><span></span><span></span><span></span></div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return id;
+}
+
+function removeTyping(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+// Auto-resize textarea
+document.getElementById('chat-input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Sign Up{% endblock %}
+{% block body_class %}page-auth{% endblock %}
+{% block content %}
+
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <span class="auth-logo">📚</span>
+      <h1>Get started free</h1>
+      <p>Upload your first syllabus in 60 seconds</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.signup') }}" class="auth-form">
+      <div class="form-group">
+        <label for="name">Full name</label>
+        <input type="text" id="name" name="name"
+               placeholder="Alex Kumar" required autocomplete="name" autofocus>
+      </div>
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email"
+               placeholder="you@university.edu" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="password-container">
+          <input type="password" id="password" name="password"
+                 placeholder="Minimum 8 characters" required autocomplete="new-password" minlength="8">
+          <span class="password-toggle" onclick="togglePasswordVisibility('password')">👁️</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="confirm_password">Confirm password</label>
+        <div class="password-container">
+          <input type="password" id="confirm_password" name="confirm_password"
+                 placeholder="Repeat your password" required autocomplete="new-password">
+          <span class="password-toggle" onclick="togglePasswordVisibility('confirm_password')">👁️</span>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full btn-lg">Create Account →</button>
+    </form>
+
+    <div class="auth-footer">
+      Already have an account? <a href="{{ url_for('auth.login') }}"><strong>Log in</strong></a>
+    </div>
+    <p style="text-align:center;font-size:.72rem;color:var(--text3);margin-top:.75rem">
+      The first account created automatically becomes admin.
+    </p>
+  </div>
+</div>
+
+{% endblock %}

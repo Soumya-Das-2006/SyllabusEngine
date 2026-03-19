@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ user.name }} — Attendance{% endblock %}
+{% block content_inner %}
+<div class="page-header">
+  <div><h1>📋 {{ user.name }}'s Attendance</h1><p class="text-muted">{{ user.email }}</p></div>
+  <a href="{{ url_for('attendance.overview') }}" class="btn btn-ghost btn-sm">← Back</a>
+</div>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem">
+  {% for label, val, color in [('Total',total,'primary'),('Present',present,'green'),('Late',late,'amber'),('Absent',total-present-late,'red'),('Attendance',pct|string+'%','primary')] %}
+  <div class="card" style="text-align:center;border-top:3px solid var(--{{ color }})">
+    <div style="font-size:1.75rem;font-weight:800;color:var(--{{ color }})">{{ val }}</div>
+    <div class="small text-muted">{{ label }}</div>
+  </div>
+  {% endfor %}
+</div>
+<div class="card" style="padding:0;overflow:hidden">
+  <table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:var(--bg2);font-size:.78rem;font-weight:700;color:var(--text2)">
+      <th style="padding:.6rem 1rem;text-align:left">Date</th>
+      <th style="padding:.6rem 1rem;text-align:left">Session</th>
+      <th style="padding:.6rem 1rem;text-align:left">Subject</th>
+      <th style="padding:.6rem 1rem;text-align:left">Status</th>
+      <th style="padding:.6rem 1rem;text-align:left">Note</th>
+    </tr></thead>
+    <tbody>
+      {% for r in records %}
+      <tr style="border-top:1px solid var(--border)">
+        <td style="padding:.6rem 1rem;font-size:.87rem;font-weight:600">{{ r.session.date.strftime('%b %d, %Y') }}</td>
+        <td style="padding:.6rem 1rem;font-size:.87rem">{{ r.session.title }}</td>
+        <td style="padding:.6rem 1rem;font-size:.85rem;color:var(--text2)">{{ r.session.subject.name if r.session.subject else '—' }}</td>
+        <td style="padding:.6rem 1rem"><span class="badge att-status-{{ r.status }}">{{ r.status.capitalize() }}</span></td>
+        <td style="padding:.6rem 1rem;font-size:.82rem;color:var(--text3)">{{ r.note or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text3)">No records.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

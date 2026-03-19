@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+  <!-- Greeting -->
+  <div class="page-header">
+    <div>
+      <h1>{% if now.hour < 12 %}Good morning{% elif now.hour < 17 %}Good afternoon{% else %}Good evening{% endif %}, {{ current_user.name.split()[0] }}</h1>
+      <p class="text-muted">Here's your study overview for today.</p>
+    </div>
+    <div class="page-header-actions">
+      <a href="{{ url_for('quiz.quiz_start') }}" class="btn btn-primary">Start Quiz</a>
+      <a href="{{ url_for('schedule.generate') if False else url_for('schedule.schedule_home') }}" class="btn btn-outline">Open Planner</a>
+    </div>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stat-grid">
+    <div class="stat-card stat-card-primary">
+      <div class="stat-icon">Subjects</div>
+      <div class="stat-val">{{ total_subjects }}</div>
+      <div class="stat-label">Active Subjects</div>
+      <div class="stat-sub"><a href="{{ url_for('subjects.index') }}">View all →</a></div>
+    </div>
+    <div class="stat-card stat-card-green">
+      <div class="stat-icon">Done</div>
+      <div class="stat-val">{{ total_completed }}</div>
+      <div class="stat-label">Topics Completed</div>
+    </div>
+    <div class="stat-card stat-card-amber">
+      <div class="stat-icon">Pending</div>
+      <div class="stat-val">{{ pending_tasks }}</div>
+      <div class="stat-label">Pending Tasks</div>
+      <div class="stat-sub">Due within 14 days</div>
+    </div>
+    <div class="stat-card stat-card-blue">
+      <div class="stat-icon">Average</div>
+      <div class="stat-val">{{ avg_quiz_score }}%</div>
+      <div class="stat-label">Avg Quiz Score</div>
+      <div class="stat-sub">{{ total_quizzes }} quizzes taken</div>
+    </div>
+    <div class="stat-card stat-card-purple">
+      <div class="stat-icon">Quizzes</div>
+      <div class="stat-val">{{ total_quizzes }}</div>
+      <div class="stat-label">Quizzes Taken</div>
+      <div class="stat-sub">Total attempts</div>
+    </div>
+  </div>
+
+  {% if assigned_quizzes %}
+  <div class="card dashboard-section-card">
+    <div class="dashboard-section-header">
+      <h2>Assigned Quizzes</h2>
+      <a href="{{ url_for('quiz.quiz_home') }}" class="btn btn-ghost btn-sm">Quiz Center →</a>
+    </div>
+    {% for q in assigned_quizzes %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div class="bold small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ q.title }}</div>
+        <div class="small text-muted">
+          {{ q.subject.name if q.subject else 'General' }}
+          · {{ q.questions|length }} questions
+          · {{ q.duration_minutes or 30 }}m
+        </div>
+      </div>
+      <a href="{{ url_for('quiz.assigned_quiz_start', quiz_id=q.id) }}" class="btn btn-primary btn-sm">Start</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Charts -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Quiz Score Trend</h3>
+      <canvas id="trendChart" height="110"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Subject Completion</h3>
+      <div style="max-width:280px;margin:0 auto;padding:6px 0">
+        <canvas id="subjectChart" height="180"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Topic Performance</h3>
+      <canvas id="topicChart" height="160"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Study Activity</h3>
+      <canvas id="activityChart" height="160"></canvas>
+    </div>
+  </div>
+
+  <!-- Main Content Grid -->
+  <div class="dashboard-main-grid">
+
+    <!-- Left: Subjects -->
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h2>Your Subjects</h2>
+        <a href="{{ url_for('subjects.index') }}" class="btn btn-ghost btn-sm">Manage →</a>
+      </div>
+      {% if subject_data %}
+        <div style="display:flex;flex-direction:column;gap:.85rem">
+          {% for item in subject_data %}
+          <div class="card card-compact">
+            <div class="card-row">
+              <div class="subject-color-dot" style="background:{{ item.subject.color }}"></div>
+              <div style="flex:1">
+                <div class="bold">{{ item.subject.name }}</div>
+                {% if item.current_week %}
+                  <div class="small text-muted">Week {{ item.current_week.week_number }} — {{ item.current_week.get_topics()|join(', ')|truncate(60) }}</div>
+                {% endif %}
+              </div>
+              <span class="badge badge-{{ 'green' if item.completion >= 70 else ('amber' if item.completion >= 30 else 'red') }}">
+                {{ item.completion }}%
+              </span>
+            </div>
+            <div class="prog-bar">
+              <div class="prog-fill prog-{{ 'green' if item.completion >= 70 else ('amber' if item.completion >= 30 else 'primary') }}"
+                   style="width:{{ item.completion }}%"></div>
+            </div>
+            {% if item.plan %}
+              <div class="card-actions-row">
+                <a href="{{ url_for('study_plan.week_grid', subject_id=item.subject.id) }}" class="btn btn-ghost btn-sm">View Plan</a>
+                <a href="{{ url_for('quiz.quiz_start') }}?subject_id={{ item.subject.id }}" class="btn btn-ghost btn-sm">Practice Quiz</a>
+              </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <span class="empty-icon">No subjects</span>
+          <p>No subjects yet. <a href="{{ url_for('subjects.index') }}">Add one</a> to get started.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Right Sidebar -->
+    <div class="dashboard-sidebar">
+
+      <!-- Today's Schedule -->
+      <div class="card">
+        <div class="dashboard-section-header">
+          <h3>Today's Plan</h3>
+          <a href="{{ url_for('schedule.schedule_home') }}" class="btn btn-ghost btn-sm">View all</a>
+        </div>
+        {% if todays_schedule %}
+          {% for s in todays_schedule %}
+          <div style="display:flex;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border);align-items:flex-start">
+            <div style="background:var(--primary-ll);color:var(--primary);border-radius:6px;
+                 padding:.25rem .5rem;font-size:.75rem;font-weight:700;white-space:nowrap">
+              {{ s.time_slot.split(' - ')[0] if s.time_slot else '—' }}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="small bold" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.topic }}</div>
+              <div class="small text-muted">{{ s.duration }}min · {{ s.difficulty }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="small text-muted">No sessions scheduled today. <a href="{{ url_for('schedule.schedule_home') }}">Generate schedule</a></p>
+        {% endif %}
+      </div>
+
+      <!-- Deadlines -->
+      <div class="card">
+        <div class="dashboard-section-header">
+          <h3>Upcoming Deadlines</h3>
+        </div>
+        {% if upcoming_deadlines %}
+          {% for a in upcoming_deadlines %}
+          {% set days_left = (a.due_date - today).days %}
+          <div style="display:flex;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border);align-items:flex-start">
+            <div style="background:var(--{{ 'red-bg' if days_left <= 3 else ('amber-bg' if days_left <= 7 else 'green-bg') }});
+                 color:var(--{{ 'red' if days_left <= 3 else ('amber' if days_left <= 7 else 'green') }});
+                 border-radius:6px;padding:.25rem .5rem;font-size:.75rem;font-weight:700;white-space:nowrap">
+              {{ days_left }}d
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="small bold" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.title }}</div>
+              <div class="small text-muted">{{ a.subject.name }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="small text-muted">No upcoming deadlines.</p>
+        {% endif %}
+      </div>
+
+      <!-- Weak Topics -->
+      {% if weak_topics %}
+      <div class="card card-amber">
+        <h3 style="margin-bottom:.75rem">Needs Attention</h3>
+        {% for t in weak_topics %}
+        <div style="display:flex;align-items:center;justify-content:space-between;
+             padding:.4rem 0;border-bottom:1px solid var(--amber-b)">
+          <span class="small">{{ t }}</span>
+          <a href="{{ url_for('quiz.quiz_start') }}" class="btn btn-ghost btn-sm" style="font-size:.72rem">Practice →</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Recent Notes -->
+      {% if recent_notes %}
+      <div class="card">
+        <div class="dashboard-section-header">
+          <h3>Recent Notes</h3>
+          <a href="{{ url_for('notes.index') }}" class="btn btn-ghost btn-sm">All notes</a>
+        </div>
+        {% for n in recent_notes %}
+        <a href="{{ url_for('notes.edit', note_id=n.id) }}" style="display:block;text-decoration:none;
+             padding:.55rem 0;border-bottom:1px solid var(--border)">
+          <div class="small bold" style="color:var(--text)">{{ n.title|truncate(40) }}</div>
+          <div class="small text-muted">{{ n.updated_at.strftime('%b %d') }}</div>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/dashboard/chart-data')
+  .then(r => r.json())
+  .then(data => {
+    const font = { family: 'Inter', size: 11 };
+    const gridColor = 'rgba(0,0,0,.06)';
+
+    // Trend
+    if (data.trend.labels.length) {
+      new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+          labels: data.trend.labels,
+          datasets: [{
+            label: 'Quiz Score %', data: data.trend.scores,
+            borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,.1)',
+            fill: true, tension: 0.4, pointRadius: 3,
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } },
+          scales: { y: { min: 0, max: 100, ticks: { font } }, x: { ticks: { font } } } }
+      });
+    } else {
+      document.getElementById('trendChart').parentElement.innerHTML += '<p style="text-align:center;color:#999;font-size:.85rem;margin-top:1rem">Take quizzes to see your trend</p>';
+    }
+
+    // Subjects
+    if (data.subjects.labels.length) {
+      const subjectCtx = document.getElementById('subjectChart').getContext('2d');
+      const neonColors = ['#4f46e5','#06b6d4','#22c55e','#eab308','#ec4899','#8b5cf6'];
+
+      new Chart(subjectCtx, {
+        type: 'doughnut',
+        data: {
+          labels: data.subjects.labels,
+          datasets: [{
+            data: data.subjects.pcts,
+            backgroundColor: neonColors,
+            borderColor: '#020617',
+            borderWidth: 2,
+            hoverOffset: 10,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '65%',
+          plugins: {
+            legend: { position: 'bottom', labels: { font, padding: 12 } },
+            tooltip: {
+              backgroundColor: '#020617',
+              borderColor: '#4f46e5',
+              borderWidth: 1,
+              titleFont: font,
+              bodyFont: font,
+            }
+          },
+          animation: {
+            animateRotate: true,
+            animateScale: true,
+            duration: 900
+          }
+        }
+      });
+    }
+
+    // Topics
+    if (data.topics.labels.length) {
+      new Chart(document.getElementById('topicChart'), {
+        type: 'bar',
+        data: {
+          labels: data.topics.labels.map(l => l.length > 18 ? l.slice(0,18)+'…' : l),
+          datasets: [{
+            label: 'Accuracy %', data: data.topics.scores,
+            backgroundColor: data.topics.scores.map(s => s < 50 ? '#fecaca' : s < 75 ? '#fde68a' : '#bbf7d0'),
+            borderRadius: 6,
+          }]
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } },
+          scales: { x: { min: 0, max: 100, ticks: { font } }, y: { ticks: { font } } } }
+      });
+    }
+
+    // Activity bar (mock daily activity from trend data)
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    new Chart(document.getElementById('activityChart'), {
+      type: 'bar',
+      data: {
+        labels: days,
+        datasets: [{
+          label: 'Study sessions',
+          data: days.map(() => Math.floor(Math.random() * 4)),
+          backgroundColor: '#a5b4fc', borderRadius: 6,
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { font, stepSize: 1 } }, x: { ticks: { font } } } }
+    });
+  })
+  .catch(() => {});
+</script>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "admin/base.html" %}
+{% block title %}Create Quiz{% endblock %}
+{% block content_inner %}
+<div style="max-width:800px;margin:0 auto">
+  <div class="page-header">
+    <div><h1>🧪 Create Quiz</h1></div>
+    <a href="{{ url_for('admin.quiz_list') }}" class="btn btn-ghost btn-sm">← Back</a>
+  </div>
+  <div class="card">
+    <form method="POST" id="quiz-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Quiz Title *</label>
+          <input type="text" name="title" required placeholder="e.g. Chapter 3 Assessment">
+        </div>
+        <div class="form-group">
+          <label>Subject *</label>
+          <select name="subject_id" required>
+            <option value="">— Select —</option>
+            {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Duration (minutes)</label>
+          <input type="number" name="duration" value="30" min="5" max="180">
+        </div>
+        <div class="form-group">
+          <label>Pass Mark (%)</label>
+          <input type="number" name="pass_marks" value="50" min="1" max="100">
+        </div>
+        <div class="form-group">
+          <label>Max Violations</label>
+          <input type="number" name="max_violations" value="3" min="1" max="10">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:1.5rem;padding:1rem;background:var(--bg2);border-radius:var(--r-sm)">
+        <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem">
+          <input type="checkbox" name="fullscreen_req" checked> Require Fullscreen
+        </label>
+        <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem">
+          <input type="checkbox" name="shuffle_q" checked> Shuffle Questions
+        </label>
+        <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem">
+          <input type="checkbox" name="webcam_req"> Webcam Required
+        </label>
+      </div>
+
+      <!-- AI generation -->
+      <div style="background:var(--primary-ll);border:1px solid var(--primary-l);border-radius:var(--r);padding:1rem;margin-bottom:1.5rem">
+        <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;margin-bottom:.75rem">
+          <input type="checkbox" name="ai_generate" id="ai-toggle" onchange="toggleAI(this.checked)">
+          <div><div class="bold">🤖 AI-Generate Questions (Groq)</div><div class="small text-muted">Auto-create MCQs from a topic</div></div>
+        </label>
+        <div id="ai-fields" style="display:none">
+          <div class="form-row">
+            <div class="form-group"><label>Topic</label><input type="text" name="ai_topic" placeholder="e.g. Newton's Laws of Motion"></div>
+            <div class="form-group"><label>Number of Questions</label><input type="number" name="ai_num_q" value="10" min="3" max="30"></div>
+            <div class="form-group"><label>Difficulty</label>
+              <select name="ai_difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual questions -->
+      <div id="manual-section">
+        <h3 style="margin-bottom:1rem">Questions</h3>
+        <div id="q-container">
+          <div class="q-block card" style="padding:1rem;margin-bottom:1rem;background:var(--surface2)">
+            <div class="bold small" style="margin-bottom:.6rem">Question 1</div>
+            <div class="form-group"><textarea name="q_text[]" rows="2" placeholder="Question text…" required></textarea></div>
+            <div class="form-row">
+              <div class="form-group"><label>A</label><input type="text" name="q_a[]" required placeholder="Option A"></div>
+              <div class="form-group"><label>B</label><input type="text" name="q_b[]" required placeholder="Option B"></div>
+              <div class="form-group"><label>C</label><input type="text" name="q_c[]" required placeholder="Option C"></div>
+              <div class="form-group"><label>D</label><input type="text" name="q_d[]" required placeholder="Option D"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Correct Answer</label>
+                <select name="q_correct[]" required><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select>
+              </div>
+              <div class="form-group"><label>Marks</label><input type="number" name="q_marks[]" value="1" min="1"></div>
+            </div>
+          </div>
+        </div>
+        <button type="button" onclick="addQuestion()" class="btn btn-outline btn-sm" style="margin-bottom:1.5rem">+ Add Question</button>
+      </div>
+
+      <div style="display:flex;gap:.75rem">
+        <button type="submit" class="btn btn-primary btn-lg" id="create-btn">🚀 Create Quiz</button>
+        <a href="{{ url_for('admin.quiz_list') }}" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let qCount = 1;
+function toggleAI(on) {
+  document.getElementById('ai-fields').style.display   = on ? 'block' : 'none';
+  document.getElementById('manual-section').style.display = on ? 'none' : 'block';
+  document.querySelectorAll('#manual-section [required]').forEach(el => el.required = !on);
+}
+function addQuestion() {
+  qCount++;
+  const tmpl = document.querySelector('.q-block').cloneNode(true);
+  tmpl.querySelector('.bold').textContent = `Question ${qCount}`;
+  tmpl.querySelectorAll('input,textarea').forEach(el => el.value = '');
+  document.getElementById('q-container').appendChild(tmpl);
+}
+document.getElementById('quiz-form').addEventListener('submit', () => {
+  const btn = document.getElementById('create-btn');
+  btn.textContent = '⏳ Creating…'; btn.disabled = true;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1>Analytics Dashboard</h1>
+      <p class="text-muted">Track your study performance and identify areas for improvement.</p>
+    </div>
+    <div class="page-header-actions">
+      <select id="subject-filter" class="form-input" onchange="loadData()">
+        <option value="">All Subjects</option>
+        {% for s in subjects %}
+          <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <select id="days-filter" class="form-input" onchange="loadData()">
+        <option value="7">Last 7 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stat-grid">
+    <div class="stat-card stat-card-blue">
+      <div class="stat-icon">Average</div>
+      <div class="stat-val">{{ overall_avg }}%</div>
+      <div class="stat-label">Overall Avg Score</div>
+    </div>
+    <div class="stat-card stat-card-green">
+      <div class="stat-icon">Quizzes</div>
+      <div class="stat-val">{{ total_quizzes }}</div>
+      <div class="stat-label">Total Quizzes Taken</div>
+    </div>
+    <div class="stat-card stat-card-primary">
+      <div class="stat-icon">Subjects</div>
+      <div class="stat-val">{{ subjects|length }}</div>
+      <div class="stat-label">Active Subjects</div>
+    </div>
+    <div class="stat-card stat-card-amber">
+      <div class="stat-icon">Weak</div>
+      <div class="stat-val">{{ all_weak|length }}</div>
+      <div class="stat-label">Weak Topics</div>
+    </div>
+  </div>
+
+  <!-- Charts Row 1 -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Score Trend Over Time</h3>
+      <canvas id="trendChart" height="180"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Subject Performance</h3>
+      <canvas id="subjectChart" height="180"></canvas>
+    </div>
+  </div>
+
+  <!-- Charts Row 2 -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Topic-Wise Accuracy</h3>
+      <canvas id="topicChart" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Completion by Subject</h3>
+      <canvas id="completionChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- Per-Subject Analytics Cards -->
+  <h2 style="margin-bottom:1rem">Subject Breakdown</h2>
+  <div class="analytics-subject-grid">
+    {% for s in subjects %}
+    {% set a = analytics_by_subj.get(s.id) %}
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem">
+        <div style="width:14px;height:14px;border-radius:50%;background:{{ s.color }};flex-shrink:0"></div>
+        <h3 style="margin:0">{{ s.name }}</h3>
+      </div>
+      {% if a %}
+        <div class="analytics-subject-metrics">
+          <div class="analytics-metric">
+            <div style="font-size:1.3rem;font-weight:700;color:var(--primary)">{{ "%.0f"|format(a.avg_score) }}%</div>
+            <div class="small text-muted">Avg Score</div>
+          </div>
+          <div class="analytics-metric">
+            <div style="font-size:1.3rem;font-weight:700;color:var(--green)">{{ "%.0f"|format(a.completion_rate) }}%</div>
+            <div class="small text-muted">Completion</div>
+          </div>
+          <div class="analytics-metric">
+            <div style="font-size:1.3rem;font-weight:700;color:var(--amber)">{{ "%.0f"|format(a.consistency_score) }}%</div>
+            <div class="small text-muted">Consistency</div>
+          </div>
+          <div class="analytics-metric">
+            <div style="font-size:1.3rem;font-weight:700;color:var(--blue)">{{ a.total_quiz_taken }}</div>
+            <div class="small text-muted">Quizzes</div>
+          </div>
+        </div>
+        {% if a.get_weak_topics() %}
+        <div class="analytics-weak-areas">
+          <div class="small bold" style="color:var(--amber);margin-bottom:.3rem">Weak Areas</div>
+          {% for t in a.get_weak_topics()[:3] %}
+          <div class="small text-muted">• {{ t }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% else %}
+        <p class="small text-muted">No quiz data yet. <a href="{{ url_for('quiz.quiz_start') }}">Take a quiz</a></p>
+      {% endif %}
+      <div class="analytics-subject-actions">
+        <a href="{{ url_for('quiz.quiz_start') }}?subject_id={{ s.id }}" class="btn btn-outline btn-sm">Quiz</a>
+        <a href="{{ url_for('study_plan.week_grid', subject_id=s.id) }}" class="btn btn-ghost btn-sm">Plan</a>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty-state analytics-subject-empty">
+      <span class="empty-icon">No data</span>
+      <p>No subjects yet. <a href="{{ url_for('subjects.index') }}">Add subjects</a> and take quizzes to see analytics.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Weak Topics Panel -->
+  {% if all_weak %}
+  <div class="card card-amber">
+    <h2 style="margin-bottom:1rem">Topics Needing Attention</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem">
+      {% for t in all_weak %}
+      <a href="{{ url_for('quiz.quiz_start') }}" class="badge badge-amber">{{ t }}</a>
+      {% endfor %}
+    </div>
+    <a href="{{ url_for('quiz.quiz_start') }}" class="btn btn-primary mt-1">
+      Practice Weak Topics
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let trendChart, subjectChart, topicChart, completionChart;
+const font = { family: 'Inter', size: 11 };
+
+function destroyCharts() {
+  [trendChart, subjectChart, topicChart, completionChart].forEach(c => c && c.destroy());
+}
+
+function loadData() {
+  const sid = document.getElementById('subject-filter').value;
+  const days = document.getElementById('days-filter').value;
+  fetch(`/analytics/data?subject_id=${sid}&days=${days}`)
+    .then(r => r.json())
+    .then(data => {
+      destroyCharts();
+
+      // Trend
+      trendChart = new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+          labels: data.trend.map(d => d.date),
+          datasets: [{ label: 'Score %', data: data.trend.map(d => d.score),
+            borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,.1)',
+            fill: true, tension: 0.4, pointRadius: 3 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } },
+          scales: { y: { min: 0, max: 100, ticks: { font } }, x: { ticks: { font } } } }
+      });
+
+      // Subjects bar
+      subjectChart = new Chart(document.getElementById('subjectChart'), {
+        type: 'bar',
+        data: {
+          labels: data.subjects.map(s => s.name),
+          datasets: [
+            { label: 'Avg Score', data: data.subjects.map(s => s.avg_score), backgroundColor: '#818cf8', borderRadius: 6 },
+            { label: 'Completion', data: data.subjects.map(s => s.completion), backgroundColor: '#86efac', borderRadius: 6 },
+          ]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font } } },
+          scales: { y: { min: 0, max: 100, ticks: { font } }, x: { ticks: { font } } } }
+      });
+
+      // Topics horizontal bar
+      topicChart = new Chart(document.getElementById('topicChart'), {
+        type: 'bar',
+        data: {
+          labels: data.breakdown.map(t => t.topic.length > 22 ? t.topic.slice(0,22)+'…' : t.topic),
+          datasets: [{
+            label: 'Accuracy %', data: data.breakdown.map(t => t.accuracy),
+            backgroundColor: data.breakdown.map(t => t.accuracy < 50 ? '#fca5a5' : t.accuracy < 75 ? '#fcd34d' : '#86efac'),
+            borderRadius: 5,
+          }]
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } },
+          scales: { x: { min: 0, max: 100, ticks: { font } }, y: { ticks: { font } } } }
+      });
+
+      // Completion doughnut
+      completionChart = new Chart(document.getElementById('completionChart'), {
+        type: 'doughnut',
+        data: {
+          labels: data.subjects.map(s => s.name),
+          datasets: [{ data: data.subjects.map(s => s.completion || 1),
+            backgroundColor: ['#818cf8','#86efac','#fcd34d','#f87171','#67e8f9','#a78bfa'],
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font } } } }
+      });
+    })
+    .catch(() => {});
+}
+loadData();
+</script>
+{% endblock %}

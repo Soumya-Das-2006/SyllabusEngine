@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Subjects{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block content %}
+
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1>My Subjects</h1>
+      <p class="text-muted">Manage all your courses and syllabi</p>
+    </div>
+    <button class="btn btn-primary"
+            onclick="document.getElementById('add-subject-modal').classList.add('open')">
+      + Add Subject
+    </button>
+  </div>
+
+  {% if subjects %}
+  <div class="subjects-grid">
+    {% for s in subjects %}
+    <div class="subject-full-card" style="--card-color: {{ s.color }}">
+      <div class="card-color-bar"></div>
+
+      <div class="sfcard-header">
+        <div class="sfcard-icon" style="background:{{ s.color }}22;color:{{ s.color }}">
+          {{ s.name[0].upper() }}
+        </div>
+        <div class="sfcard-info">
+          <h3>{{ s.name }}</h3>
+          <span class="sfcard-meta">
+            {{ s.semester_length }} weeks
+            {% if s.start_date %} · Started {{ s.start_date.strftime('%b %d, %Y') }}{% endif %}
+          </span>
+        </div>
+      </div>
+
+      <div class="sfcard-progress">
+        <div class="progress-bar-wrap" style="flex:1">
+          <div class="progress-bar" style="width:{{ s.completion_pct }}%;background:{{ s.color }}"></div>
+        </div>
+        <span>{{ s.completion_pct }}%</span>
+      </div>
+
+      <div class="sfcard-actions">
+        {% if s.latest_plan %}
+          <a href="{{ url_for('study_plan.week_grid', subject_id=s.id) }}" class="btn btn-primary btn-sm">View Plan</a>
+          <a href="{{ url_for('study_plan.progress', subject_id=s.id) }}" class="btn btn-outline btn-sm">Progress</a>
+          <a href="{{ url_for('calendar.view', subject_id=s.id) }}" class="btn btn-ghost btn-sm">📅 Calendar</a>
+          <a href="{{ url_for('assistant.chat_page', subject_id=s.id) }}" class="btn btn-ghost btn-sm">🤖 Kai</a>
+        {% else %}
+          <a href="{{ url_for('upload.upload_page', subject_id=s.id) }}" class="btn btn-primary btn-sm">Upload Syllabus →</a>
+        {% endif %}
+        <form method="POST" action="{{ url_for('subjects.delete', subject_id=s.id) }}"
+              style="margin-left:auto" onsubmit="return confirm('Archive {{ s.name }}? You can restore it later.')">
+          <button type="submit" class="btn btn-ghost btn-sm btn-danger-ghost">Archive</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon">📚</span>
+    <h2>No subjects yet</h2>
+    <p>Add your first subject, then upload its syllabus to generate a complete study plan automatically.</p>
+    <button class="btn btn-primary btn-lg"
+            onclick="document.getElementById('add-subject-modal').classList.add('open')">
+      + Add Your First Subject
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── ADD SUBJECT MODAL ── -->
+<div class="modal-overlay" id="add-subject-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add New Subject</h2>
+      <button class="modal-close"
+              onclick="document.getElementById('add-subject-modal').classList.remove('open')">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('subjects.add') }}">
+      <div class="form-group">
+        <label>Subject name *</label>
+        <input type="text" name="name" placeholder="e.g. Machine Learning, Calculus II, History" required autofocus>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Color label</label>
+          <input type="color" name="color" value="#6366f1">
+        </div>
+        <div class="form-group">
+          <label>Semester length</label>
+          <select name="semester_length">
+            <option value="8">8 weeks</option>
+            <option value="10">10 weeks</option>
+            <option value="12">12 weeks</option>
+            <option value="14">14 weeks</option>
+            <option value="15" selected>15 weeks (default)</option>
+            <option value="16">16 weeks</option>
+            <option value="18">18 weeks</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Course start date</label>
+        <input type="date" name="start_date">
+        <span class="form-hint">Needed to convert "Week 3" into real calendar dates.</span>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost"
+                onclick="document.getElementById('add-subject-modal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Subject & Upload Syllabus →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

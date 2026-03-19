@@ -1,0 +1,637 @@
+{% extends "base.html" %}
+{% block title %}Study Material — {{ subject.name if subject else 'All Subjects' }}{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block content %}
+
+<!-- Study Material Sub-Navbar -->
+<nav class="study-nav">
+  <div class="study-nav-inner">
+    <a href="{{ url_for('dashboard.index') }}" class="study-nav-back">← Dashboard</a>
+    <h2 class="study-nav-title">Study Material</h2>
+    <div class="study-nav-right">
+      {% if subjects %}
+      <select id="subject-select" class="input study-nav-select" onchange="changeSubject(this.value)">
+        <option value="">All subjects</option>
+        {% for s in subjects %}
+          <option value="{{ s.id }}" {% if subject and subject.id == s.id %}selected{% endif %}>
+            {{ s.name }}
+          </option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <div class="kai-badge">
+        <span class="kai-badge-icon">🤖</span>
+        <span>Kai AI</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="assistant-page-wrap">
+
+  <!-- Page Header -->
+  <div class="assistant-page-header">
+    <h1>Kai — AI Study Assistant</h1>
+    <p class="text-muted" style="font-size:.88rem">
+      8 study modes · Voice input · Photo upload · Multi-language support
+      {% if subject %} · Currently: <strong>{{ subject.name }}</strong>{% endif %}
+    </p>
+  </div>
+
+  <div class="assistant-grid">
+
+    <!-- ── LEFT: MAIN PANEL ── -->
+    <div class="assistant-left">
+
+      <!-- PDF Upload -->
+      <div class="pdf-section">
+        <div class="ai-step-label">📄 Upload Study PDF (Optional)</div>
+        <label for="pdf-upload" class="pdf-dropzone" id="pdf-dropzone">
+          <div class="pdf-dropzone-icon">📎</div>
+          <div class="pdf-dz-title">Drop PDF here or click to browse</div>
+          <div class="pdf-dz-sub">Kai will answer questions from your uploaded PDF</div>
+          <input type="file" id="pdf-upload" accept=".pdf" style="display:none" onchange="handlePDF(this)">
+        </label>
+        <div id="pdf-preview" style="display:none">
+          <div class="pdf-info-bar">
+            <span class="pdf-info-text">📄 <span id="pdf-pages">--</span> pages extracted</span>
+            <span class="pdf-active-badge">PDF ACTIVE</span>
+            <button onclick="clearPDF()" class="btn btn-ghost btn-sm" style="margin-left:auto">× Remove</button>
+          </div>
+          <iframe id="pdf-viewer" class="pdf-viewer" title="PDF Preview"></iframe>
+        </div>
+      </div>
+
+      <!-- Step 1: Mode Selector -->
+      <div class="ai-step-card">
+        <div class="ai-step-label" id="mode-step-label">STEP 1 — CHOOSE STUDY MODE</div>
+        <div class="ai-mode-grid" id="mode-grid">
+
+          <button class="ai-mode-btn active" data-mode="explain" onclick="selectMode('explain',this)">
+            <span class="ai-mode-icon">📖</span>
+            <span class="ai-mode-name">Explain Topic</span>
+            <span class="ai-mode-desc">Clear explanation + examples</span>
+          </button>
+
+          <button class="ai-mode-btn" data-mode="notes" onclick="selectMode('notes',this)">
+            <span class="ai-mode-icon">📝</span>
+            <span class="ai-mode-name">Generate Notes</span>
+            <span class="ai-mode-desc">Exam-ready structured notes</span>
+          </button>
+
+          <button class="ai-mode-btn" data-mode="quiz" onclick="selectMode('quiz',this)">
+            <span class="ai-mode-icon">🧠</span>
+            <span class="ai-mode-name">Practice Quiz</span>
+            <span class="ai-mode-desc">MCQ + short + long</span>
+          </button>
+
+          <button class="ai-mode-btn" data-mode="doubt" onclick="selectMode('doubt',this)">
+            <span class="ai-mode-icon">❓</span>
+            <span class="ai-mode-name">Solve My Doubt</span>
+            <span class="ai-mode-desc">Detailed step-by-step help</span>
+          </button>
+
+          <button class="ai-mode-btn" data-mode="important_qs" onclick="selectMode('important_qs',this)">
+            <span class="ai-mode-icon">📋</span>
+            <span class="ai-mode-name">Important Qs</span>
+            <span class="ai-mode-desc">Exam focus questions</span>
+          </button>
+
+          <button class="ai-mode-btn" data-mode="revision" onclick="selectMode('revision',this)">
+            <span class="ai-mode-icon">⚡</span>
+            <span class="ai-mode-name">Quick Revision</span>
+            <span class="ai-mode-desc">Last-minute summary</span>
+          </button>
+
+          <button class="ai-mode-btn" data-mode="math" onclick="selectMode('math',this)">
+            <span class="ai-mode-icon">📐</span>
+            <span class="ai-mode-name">Math Solver</span>
+            <span class="ai-mode-desc">Full step-by-step solve</span>
+          </button>
+
+          <button class="ai-mode-btn" data-mode="essay" onclick="selectMode('essay',this)">
+            <span class="ai-mode-icon">✍️</span>
+            <span class="ai-mode-name">Essay / Letter</span>
+            <span class="ai-mode-desc">Writing &amp; applications</span>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Step 2: Input -->
+      <div class="ai-input-section">
+        <div class="ai-step-label">STEP 2 — TYPE YOUR TOPIC OR QUESTION</div>
+
+        <!-- Toolbar -->
+        <div class="ai-input-toolbar">
+          <button class="ai-toolbar-btn" id="voice-btn" onclick="toggleVoice()" type="button">
+            🎤 <span id="voice-label">Speak Question</span>
+          </button>
+
+          <label class="ai-toolbar-btn" for="photo-upload" style="cursor:pointer" title="Upload a photo of your question">
+            📷 <span>Upload Photo</span>
+            <input type="file" id="photo-upload" accept="image/*"
+                   style="display:none" onchange="handlePhoto(this)">
+          </label>
+
+          <span id="pdf-status" class="pdf-indicator" style="display:none">📄 PDF Active</span>
+
+          <div class="lang-toggle-wrap" style="display:flex;align-items:center;gap:.45rem">
+            <span id="lang-label">🌐 Answer Language</span>
+            <select id="language-select" class="input" onchange="setLanguage(this.value)" style="min-width:130px;height:34px;padding:.3rem .55rem">
+              <option value="en" selected>English</option>
+              <option value="bn">Bengali</option>
+              <option value="hi">Hindi</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="ar">Arabic</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Photo preview -->
+        <div id="photo-preview" class="photo-preview" style="display:none">
+          <img id="photo-img" alt="Uploaded question" style="max-height:80px">
+          <span style="font-size:.82rem;color:var(--text2);flex:1">Photo attached — Kai will analyze it</span>
+          <button onclick="clearPhoto()" class="btn btn-ghost btn-sm" type="button">× Remove</button>
+        </div>
+
+        <!-- Textarea -->
+        <textarea id="topic-input" class="ai-textarea"
+                  placeholder="Example: Explain the causes of the French Revolution...&#10;or, What is Newton's second law of motion?"
+                  maxlength="500" oninput="updateCount()" rows="4"></textarea>
+
+        <div class="ai-input-footer">
+          <span id="char-count" class="char-count">0 / 500</span>
+          <div class="sample-chips" id="sample-chips"></div>
+        </div>
+
+        <button class="btn btn-primary btn-full btn-lg" id="ask-btn"
+                onclick="askAI()" type="button" style="margin-top:.25rem">
+          🚀 <span id="ask-btn-text">Get Answer</span>
+        </button>
+
+        <p class="text-muted" style="font-size:.72rem;text-align:center;margin-top:.5rem">
+          Kai uses your syllabus context. Responses are AI-generated — always verify important dates.
+        </p>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading-area" style="display:none">
+        <div class="ai-thinking-card">
+          <div class="thinking-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <p id="loading-msg" style="color:var(--text2);font-size:.9rem">Kai is thinking…</p>
+        </div>
+      </div>
+
+      <!-- Response Area -->
+      <div id="response-area" style="display:none">
+        <div class="ai-response-card">
+          <div class="ai-response-header">
+            <span id="response-mode-tag" class="mode-tag">🤖 Kai</span>
+            <div class="ai-response-actions">
+              <button onclick="copyResponse()" class="btn btn-ghost btn-sm" type="button">📋 Copy</button>
+              <button onclick="askFollowUp()" class="btn btn-ghost btn-sm" type="button">💬 Follow-up</button>
+              <button onclick="newSession()" class="btn btn-ghost btn-sm" type="button">🔄 New</button>
+            </div>
+          </div>
+          <div id="response-body" class="ai-response-body"></div>
+        </div>
+      </div>
+
+    </div><!-- end assistant-left -->
+
+    <!-- ── RIGHT: SIDEBAR ── -->
+    <div class="assistant-sidebar">
+
+      <!-- Recent Sessions -->
+      <div class="sessions-card sidebar-card" style="margin-bottom:1rem">
+        <h4 class="sidebar-card-title">🕑 Recent Sessions</h4>
+        {% if recent_sessions %}
+          {% for s in recent_sessions %}
+          <div class="session-item" onclick="loadSession({{ s.id }})">
+            <span class="session-mode-icon">
+              {% if s.mode == 'explain' %}📖
+              {% elif s.mode == 'notes' %}📝
+              {% elif s.mode == 'quiz' %}🧠
+              {% elif s.mode == 'doubt' %}❓
+              {% elif s.mode == 'important_qs' %}📋
+              {% elif s.mode == 'revision' %}⚡
+              {% elif s.mode == 'math' %}📐
+              {% elif s.mode == 'essay' %}✍️
+              {% else %}🤖{% endif %}
+            </span>
+            <div class="session-info">
+              <span class="session-topic">
+                {{ s.topic[:42] }}{% if s.topic|length > 42 %}…{% endif %}
+              </span>
+              <span class="session-meta">
+                {{ s.mode | replace('_',' ') | title }} ·
+                {{ s.updated_at.strftime('%d %b %I:%M %p') }}
+              </span>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted" style="font-size:.82rem;padding:.5rem 0">
+            No sessions yet. Ask your first question!
+          </p>
+        {% endif %}
+      </div>
+
+      <!-- Quick Prompts -->
+      <div class="samples-card sidebar-card" style="margin-bottom:1rem">
+        <h4 class="sidebar-card-title">💡 Try a Sample</h4>
+        <div class="sample-list" id="sidebar-samples"></div>
+      </div>
+
+      <!-- Mode Info Card -->
+      <div class="sidebar-mode-info">
+        <strong id="mode-info-title">📖 Explain Topic</strong>
+        <p id="mode-info-desc" class="sidebar-mode-desc">
+          Kai gives you a clear explanation with a simple analogy, step-by-step breakdown, 2 real examples, and common mistakes to avoid.
+        </p>
+      </div>
+
+    </div><!-- end assistant-sidebar -->
+
+  </div><!-- end assistant-grid -->
+</div><!-- end assistant-page-wrap -->
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── State ──
+let currentMode    = 'explain';
+let currentLang    = 'en';
+let currentSession = null;
+let isRecording    = false;
+let recognition    = null;
+let photoText      = '';
+let pdfText        = '';
+const currentSubjectId = {{ subject.id if subject else 'null' }};
+
+// ── Mode metadata ──
+const MODES = {
+  explain:      { icon:'📖', label:'Explain Topic',   desc:'Kai gives a clear explanation with analogy, step-by-step breakdown, 2 real examples, and common mistakes.' },
+  notes:        { icon:'📝', label:'Generate Notes',  desc:'Kai creates exam-ready structured notes with key definitions, formulas, and memory tips.' },
+  quiz:         { icon:'🧠', label:'Practice Quiz',   desc:'Kai generates 5 MCQs, 3 short-answer, and 2 long-answer/essay questions with answers.' },
+  doubt:        { icon:'❓', label:'Solve My Doubt',  desc:'Kai patiently explains from scratch using simple language and daily-life analogies until you understand.' },
+  important_qs: { icon:'📋', label:'Important Questions', desc:'Kai lists the most likely exam questions with star ratings and chapter references.' },
+  revision:     { icon:'⚡', label:'Quick Revision',  desc:'Kai gives a 60-second overview, 10 key bullets, common mistakes, and last-minute tips.' },
+  math:         { icon:'📐', label:'Math Solver',     desc:'Kai solves step-by-step showing every calculation, the formula used, and an alternative method.' },
+  essay:        { icon:'✍️', label:'Essay / Letter',  desc:'Kai provides complete structured templates for essays, formal letters, and applications.' },
+};
+
+const SAMPLES = {
+  explain:      ['Explain the water cycle', 'Explain Newton\'s second law', 'Explain how photosynthesis works'],
+  notes:        ['Notes on the French Revolution', 'Notes on cell division', 'Notes on Ohm\'s Law'],
+  quiz:         ['Quiz on World War II', 'Quiz on trigonometry', 'Quiz on chemical reactions'],
+  doubt:        ['I don\'t understand integration', 'Confused about DNA replication', 'Can\'t grasp supply and demand'],
+  important_qs: ['Important Qs — Thermodynamics', 'Important Qs — Shakespeare', 'Important Qs — Organic Chemistry'],
+  revision:     ['Revise the French Revolution', 'Revise calculus basics', 'Revise photosynthesis'],
+  math:         ['Solve: 2x² - 5x + 3 = 0', 'Find the integral of sin(x)', 'Simplify: (a+b)³'],
+  essay:        ['Essay on climate change', 'Formal job application letter', 'College admission application'],
+};
+
+// ── Select mode ──
+function selectMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll('.ai-mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateSamples();
+  updateModeInfo();
+  document.getElementById('ask-btn-text').textContent = MODES[mode].label;
+  const label = pdfText
+    ? 'STEP 1 — CHOOSE STUDY MODE (PDF Active)'
+    : 'STEP 1 — CHOOSE STUDY MODE';
+  document.getElementById('mode-step-label').textContent = label;
+}
+
+function updateSamples() {
+  const chips = document.getElementById('sample-chips');
+  chips.innerHTML = (SAMPLES[currentMode] || []).map(t =>
+    `<button class="chip" onclick="fillTopic('${t.replace(/'/g,"\\'")}') " type="button">
+      Try: ${t.length > 28 ? t.slice(0,28)+'…' : t}
+    </button>`
+  ).join('');
+
+  const sidebar = document.getElementById('sidebar-samples');
+  sidebar.innerHTML = (SAMPLES[currentMode] || []).map(t =>
+    `<button class="sample-btn" onclick="fillTopic('${t.replace(/'/g,"\\'")}') " type="button">${t}</button>`
+  ).join('');
+}
+
+function updateModeInfo() {
+  const m = MODES[currentMode];
+  document.getElementById('mode-info-title').textContent = m.icon + ' ' + m.label;
+  document.getElementById('mode-info-desc').textContent  = m.desc;
+}
+
+function fillTopic(text) {
+  document.getElementById('topic-input').value = text;
+  updateCount();
+  document.getElementById('topic-input').focus();
+}
+
+function updateCount() {
+  const len = document.getElementById('topic-input').value.length;
+  document.getElementById('char-count').textContent = len + ' / 500';
+}
+
+// ── Language selector ──
+function setLanguage(lang) {
+  currentLang = lang || 'en';
+}
+
+function getSpeechLocale(lang) {
+  const locales = {
+    en: 'en-US',
+    bn: 'bn-BD',
+    hi: 'hi-IN',
+    es: 'es-ES',
+    fr: 'fr-FR',
+    ar: 'ar-SA',
+  };
+  return locales[lang] || 'en-US';
+}
+
+// ── Voice input ──
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert('Voice input is not supported in this browser. Please use Chrome.');
+    return;
+  }
+  if (isRecording) {
+    recognition && recognition.stop();
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = getSpeechLocale(currentLang);
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    isRecording = true;
+    const btn = document.getElementById('voice-btn');
+    btn.classList.add('recording');
+    document.getElementById('voice-label').textContent = '⏹ Stop Recording';
+  };
+  recognition.onresult = e => {
+    const transcript = e.results[0][0].transcript;
+    document.getElementById('topic-input').value = transcript;
+    updateCount();
+  };
+  recognition.onerror = e => { console.error('Speech error:', e.error); };
+  recognition.onend = () => {
+    isRecording = false;
+    const btn = document.getElementById('voice-btn');
+    btn.classList.remove('recording');
+    document.getElementById('voice-label').textContent = 'Speak Question';
+  };
+  recognition.start();
+}
+
+// ── Photo upload ──
+function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('photo-img').src = e.target.result;
+    document.getElementById('photo-preview').style.display = 'flex';
+    photoText = '[Student uploaded a photo/image of their question or textbook page. Please analyze and answer based on what would typically be in such an image for this subject.]';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto() {
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('photo-upload').value = '';
+  photoText = '';
+}
+
+// ── PDF upload ──
+function handlePDF(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+  const viewer = document.getElementById('pdf-viewer');
+  viewer.src = url;
+  document.getElementById('pdf-preview').style.display = 'block';
+  document.getElementById('pdf-dropzone').style.display = 'none';
+
+  const formData = new FormData();
+  formData.append('pdf', file);
+
+  fetch('/api/assistant/pdf-extract', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) {
+        alert('PDF extraction failed: ' + data.error);
+        clearPDF();
+      } else {
+        pdfText = data.pdf_text;
+        document.getElementById('pdf-pages').textContent = data.pages;
+        document.getElementById('pdf-status').style.display = 'inline-flex';
+        document.getElementById('mode-step-label').textContent = 'STEP 1 — CHOOSE STUDY MODE (PDF Active)';
+      }
+    })
+    .catch(err => {
+      console.error('PDF error:', err);
+      alert('PDF processing failed. Please try again.');
+      clearPDF();
+    });
+}
+
+function clearPDF() {
+  pdfText = '';
+  document.getElementById('pdf-preview').style.display = 'none';
+  document.getElementById('pdf-dropzone').style.display = 'flex';
+  document.getElementById('pdf-status').style.display = 'none';
+  document.getElementById('mode-step-label').textContent = 'STEP 1 — CHOOSE STUDY MODE';
+  document.getElementById('pdf-upload').value = '';
+  const viewer = document.getElementById('pdf-viewer');
+  URL.revokeObjectURL(viewer.src);
+  viewer.src = '';
+}
+
+// ── Ask AI ──
+async function askAI() {
+  const topic = document.getElementById('topic-input').value.trim();
+  if (!topic) {
+    const ta = document.getElementById('topic-input');
+    ta.focus();
+    ta.style.borderColor = 'var(--red)';
+    setTimeout(() => ta.style.borderColor = '', 1500);
+    return;
+  }
+
+  const subjectSelect = document.getElementById('subject-select');
+  let subjectId = subjectSelect?.value || currentSubjectId;
+
+  // Auto-pick the first subject if "All subjects" is selected.
+  if (!subjectId && subjectSelect && subjectSelect.options.length > 1) {
+    subjectId = subjectSelect.options[1].value;
+    subjectSelect.value = subjectId;
+  }
+
+  if (!subjectId) {
+    showError('Please select a subject first so Kai can save and track this chat.');
+    return;
+  }
+
+  document.getElementById('response-area').style.display  = 'none';
+  document.getElementById('loading-area').style.display   = 'block';
+  document.getElementById('ask-btn').disabled = true;
+
+  const loadingMsgs = ['Kai is thinking…','Analyzing your question…','Building your answer…','Almost ready…','Adding finishing touches…'];
+  let li = 0;
+  const loadingInt = setInterval(() => {
+    document.getElementById('loading-msg').textContent = loadingMsgs[li % loadingMsgs.length];
+    li++;
+  }, 2800);
+
+  try {
+    const res = await fetch('/api/assistant/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject_id:  subjectId,
+        message:     topic,
+        mode:        currentMode,
+        language:    currentLang,
+        session_id:  currentSession,
+        image_text:  photoText,
+        pdf_text:    pdfText,
+      })
+    });
+    const data = await res.json();
+    clearInterval(loadingInt);
+    document.getElementById('loading-area').style.display = 'none';
+    document.getElementById('ask-btn').disabled = false;
+
+    if (data.error) {
+      showError(data.error);
+    } else {
+      if (data.session_id) currentSession = data.session_id;
+      showResponse(data.response, MODES[currentMode]?.label || currentMode);
+    }
+  } catch (e) {
+    clearInterval(loadingInt);
+    document.getElementById('loading-area').style.display = 'none';
+    document.getElementById('ask-btn').disabled = false;
+    showError('Network error. Check your connection and try again.');
+  }
+}
+
+function showResponse(text, modeLabel) {
+  const m = MODES[currentMode];
+  document.getElementById('response-mode-tag').textContent = (m?.icon || '🤖') + ' ' + modeLabel;
+
+  let html = text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/^### (.*?)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.*?)$/gm, '<h3>$1</h3>')
+    .replace(/^# (.*?)$/gm, '<h3>$1</h3>')
+    .replace(/^- (.*?)$/gm, '<li>$1</li>')
+    .replace(/^\d+\. (.*?)$/gm, '<li>$1</li>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    .replace(/\n{2,}/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+
+  if (!html.includes('<h') && !html.includes('<li>')) {
+    html = '<p>' + html + '</p>';
+  }
+  html = html.replace(/(<li>.*?<\/li>\s*)+/gs, match => '<ul>' + match + '</ul>');
+
+  document.getElementById('response-body').innerHTML = html;
+  document.getElementById('response-area').style.display = 'block';
+  document.getElementById('response-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showError(msg) {
+  document.getElementById('response-mode-tag').textContent = '❌ Error';
+  const apiKeyHint = /groq|api key|unauthorized|authentication/i.test(msg || '')
+    ? `<p style="color:var(--text2);font-size:.85rem;margin-top:.5rem">
+         Make sure your GROQ_API_KEY is set correctly and try again.
+       </p>`
+    : '';
+  document.getElementById('response-body').innerHTML =
+    `<p style="color:var(--red)">${msg}</p>
+     ${apiKeyHint}`;
+  document.getElementById('response-area').style.display = 'block';
+}
+
+function copyResponse() {
+  const text = document.getElementById('response-body').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.currentTarget;
+    const orig = btn.textContent;
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+function askFollowUp() {
+  document.getElementById('topic-input').value = '';
+  document.getElementById('topic-input').placeholder = 'Ask Kai a follow-up question…';
+  document.getElementById('topic-input').focus();
+}
+
+function newSession() {
+  currentSession = null;
+  document.getElementById('topic-input').value = '';
+  document.getElementById('topic-input').placeholder = 'Example: Explain the causes of the French Revolution…';
+  document.getElementById('response-area').style.display = 'none';
+  clearPhoto();
+  clearPDF();
+  updateCount();
+}
+
+function changeSubject(id) {
+  if (id) window.location.href = `/ai_assist/${id}`;
+  else window.location.href = '/ai_assist';
+}
+
+async function loadSession(id) {
+  try {
+    const res  = await fetch(`/api/assistant/session/${id}`);
+    const data = await res.json();
+    if (data.messages && data.messages.length > 0) {
+      const msgs = data.messages;
+      const last = msgs[msgs.length - 1];
+      if (last.role === 'assistant') {
+        currentSession = id;
+        const modeBtn = document.querySelector(`[data-mode="${data.mode}"]`);
+        if (modeBtn) selectMode(data.mode, modeBtn);
+        document.getElementById('topic-input').value = data.topic || '';
+        updateCount();
+        showResponse(last.content, MODES[data.mode]?.label || data.mode);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load session:', e);
+  }
+}
+
+// Keyboard shortcut: Ctrl/Cmd+Enter to submit
+document.getElementById('topic-input').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    askAI();
+  }
+});
+
+// Init
+updateSamples();
+updateModeInfo();
+</script>
+{% endblock %}

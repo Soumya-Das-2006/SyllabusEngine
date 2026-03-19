@@ -1,0 +1,81 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ user.name }} — Detail{% endblock %}
+{% block content_inner %}
+<div class="page-header">
+  <div><h1>👤 {{ user.name }}</h1><p class="text-muted">{{ user.email }}</p></div>
+  <div style="display:flex;gap:.5rem">
+    <button onclick="toggleUser({{ user.id }},this)" class="btn btn-{{ 'success' if not user.is_active else 'danger' }} btn-sm">
+      {{ 'Activate' if not user.is_active else 'Block User' }}
+    </button>
+    <a href="{{ url_for('admin.users') }}" class="btn btn-ghost btn-sm">← Back</a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:300px 1fr;gap:1.25rem;align-items:start">
+  <!-- Profile info -->
+  <div>
+    <div class="card" style="margin-bottom:1rem;text-align:center;padding:1.75rem">
+      <div style="width:64px;height:64px;border-radius:50%;background:var(--primary);color:#fff;
+           display:flex;align-items:center;justify-content:center;font-size:1.75rem;font-weight:700;margin:0 auto .75rem">
+        {{ user.name[0].upper() }}
+      </div>
+      <div class="bold">{{ user.name }}</div>
+      <div class="small text-muted">{{ user.email }}</div>
+      <span class="badge badge-{{ 'green' if user.is_active else 'red' }}" style="margin-top:.5rem">{{ 'Active' if user.is_active else 'Blocked' }}</span>
+    </div>
+    <div class="card" style="font-size:.88rem">
+      <div style="display:flex;flex-direction:column;gap:.6rem">
+        <div><span class="text-muted">College:</span> {{ user.college or '—' }}</div>
+        <div><span class="text-muted">Course:</span> {{ user.course or '—' }}</div>
+        <div><span class="text-muted">Year:</span> {{ user.year or '—' }}</div>
+        <div><span class="text-muted">Profile:</span> {{ user.profile_pct }}% complete</div>
+        <div><span class="text-muted">Joined:</span> {{ user.created_at.strftime('%b %d, %Y') }}</div>
+        <div><span class="text-muted">Last seen:</span> {{ user.last_seen.strftime('%b %d %H:%M') if user.last_seen else '—' }}</div>
+        <div><span class="text-muted">Avg score:</span> <span class="badge badge-{{ 'green' if avg_score >= 70 else ('amber' if avg_score >= 50 else 'red') }}">{{ avg_score }}%</span></div>
+        <div><span class="text-muted">Certificates:</span> {{ certs|length }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <!-- Quiz attempts -->
+    <div class="card" style="margin-bottom:1rem">
+      <h3 style="margin-bottom:.75rem">🧪 Quiz History ({{ attempts|length }})</h3>
+      <div style="max-height:200px;overflow-y:auto">
+        {% for a in attempts %}
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--border)">
+          <span class="badge badge-{{ 'green' if a.accuracy_pct>=80 else ('amber' if a.accuracy_pct>=50 else 'red') }}">{{ a.accuracy_pct|round(1) }}%</span>
+          <div style="flex:1;font-size:.87rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.quiz.title }}</div>
+          {% if a.violations %}<span class="badge badge-red" style="font-size:.7rem">⚠️ {{ a.violations }}v</span>{% endif %}
+          <span class="small text-muted">{{ a.submitted_at.strftime('%b %d') if a.submitted_at else '—' }}</span>
+        </div>
+        {% else %}<p class="small text-muted">No attempts.</p>{% endfor %}
+      </div>
+    </div>
+
+    <!-- Activity logs -->
+    <div class="card">
+      <h3 style="margin-bottom:.75rem">🧾 Activity ({{ logs|length }})</h3>
+      <div style="max-height:200px;overflow-y:auto">
+        {% for l in logs %}
+        <div style="display:flex;gap:.6rem;padding:.4rem 0;border-bottom:1px solid var(--border);align-items:center">
+          <span class="badge badge-purple" style="font-size:.68rem;flex-shrink:0">{{ l.action }}</span>
+          <span class="small text-muted flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ l.detail or '' }}</span>
+          <span class="small" style="color:var(--text3);flex-shrink:0">{{ l.created_at.strftime('%b %d %H:%M') }}</span>
+        </div>
+        {% else %}<p class="small text-muted">No activity.</p>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleUser(uid, btn) {
+  if (!confirm('Toggle user status?')) return;
+  fetch(`/admin/users/${uid}/toggle`, {method:'POST'}).then(r=>r.json()).then(d=>{
+    if (d.ok) location.reload();
+  });
+}
+</script>
+{% endblock %}

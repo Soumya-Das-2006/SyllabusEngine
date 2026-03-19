@@ -1,0 +1,130 @@
+{% extends "admin/base.html" %}
+{% block title %}All Syllabi — Admin{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block content_inner %}
+
+<div class="page-container">
+
+  <div class="page-header">
+    <div>
+      <div class="admin-badge">⚙️ Admin Panel</div>
+      <h1>All Syllabi</h1>
+      <p class="text-muted">
+        {{ syllabi|length }} most recent syllabus file{{ 's' if syllabi|length != 1 }}
+      </p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="{{ url_for('admin.failed_parses') }}" class="btn btn-outline btn-sm">❌ Failed Parses</a>
+      <a href="{{ url_for('admin.index') }}" class="btn btn-ghost">← Dashboard</a>
+    </div>
+  </div>
+
+  {% if syllabi %}
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Original File</th>
+            <th>Subject</th>
+            <th>User</th>
+            <th>Uploaded</th>
+            <th>Status</th>
+            <th>OCR</th>
+            <th>Confidence</th>
+            <th style="text-align:right">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in syllabi %}
+          <tr>
+            <td style="color:var(--text3)">{{ s.id }}</td>
+            <td>
+              <div style="max-width:180px;white-space:nowrap;overflow:hidden;
+                          text-overflow:ellipsis;font-weight:500;font-size:.85rem">
+                {{ s.original_filename or 'Unknown' }}
+              </div>
+            </td>
+            <td>
+              {% if s.subject %}
+                <a href="{{ url_for('study_plan.week_grid', subject_id=s.subject.id) }}"
+                   style="font-weight:500">{{ s.subject.name }}</a>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.subject and s.subject.user %}
+                {{ s.subject.user.email }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td style="font-size:.82rem">{{ s.uploaded_at.strftime('%b %d, %Y %H:%M') }}</td>
+            <td>
+              {% if s.processing_status == 'completed' %}
+                <span class="badge badge-green">✅ Done</span>
+              {% elif s.processing_status == 'awaiting_confirmation' %}
+                <span class="badge badge-amber">⏳ Awaiting</span>
+              {% elif s.processing_status == 'processing' %}
+                <span class="badge badge-blue">🔄 Processing</span>
+              {% elif s.processing_status == 'failed' %}
+                <span class="badge badge-red">❌ Failed</span>
+              {% else %}
+                <span class="badge badge-gray">{{ s.processing_status }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.ocr_used %}
+                <span class="badge badge-amber">OCR</span>
+              {% else %}
+                <span style="color:var(--text3)">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.confidence_score %}
+                <span style="font-size:.82rem;font-weight:600;
+                  color:{% if s.confidence_score >= 0.8 %}var(--green){% elif s.confidence_score >= 0.5 %}var(--amber){% else %}var(--red){% endif %}">
+                  {{ (s.confidence_score * 100)|int }}%
+                </span>
+              {% else %}
+                <span style="color:var(--text3)">—</span>
+              {% endif %}
+            </td>
+            <td style="text-align:right">
+              {% if s.processing_status == 'failed' %}
+                <form method="POST"
+                      action="{{ url_for('admin.reprocess', syllabus_id=s.id) }}"
+                      style="display:inline">
+                  <button type="submit" class="btn btn-primary btn-sm">🔄 Retry</button>
+                </form>
+              {% elif s.processing_status == 'awaiting_confirmation' %}
+                <a href="{{ url_for('upload.confirmation', syllabus_id=s.id) }}"
+                   class="btn btn-outline btn-sm">Review</a>
+              {% else %}
+                <span style="color:var(--text3);font-size:.78rem">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="text-muted" style="font-size:.78rem;margin-top:.75rem">
+    Showing most recent 50 uploads.
+  </p>
+
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon">📄</span>
+    <h2>No syllabi yet</h2>
+    <p>Syllabi will appear here once users start uploading.</p>
+  </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}

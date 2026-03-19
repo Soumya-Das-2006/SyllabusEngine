@@ -1,0 +1,61 @@
+{% extends "admin/base.html" %}
+{% block title %}Quiz Management{% endblock %}
+{% block content_inner %}
+<div class="page-header">
+  <div><h1>🧪 Quiz Management</h1><p class="text-muted">{{ quizzes|length }} quizzes</p></div>
+  <a href="{{ url_for('admin.quiz_create') }}" class="btn btn-primary">+ Create Quiz</a>
+</div>
+<div class="card" style="padding:0;overflow:hidden">
+  <table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:var(--bg2);font-size:.78rem;font-weight:700;color:var(--text2);text-align:left">
+      <th style="padding:.7rem 1rem">Title</th><th style="padding:.7rem 1rem">Subject</th>
+      <th style="padding:.7rem 1rem">Questions</th><th style="padding:.7rem 1rem">Duration</th>
+      <th style="padding:.7rem 1rem">Attempts</th><th style="padding:.7rem 1rem">Anti-cheat</th>
+      <th style="padding:.7rem 1rem">Status</th><th style="padding:.7rem 1rem">Actions</th>
+    </tr></thead>
+    <tbody>
+      {% for q in quizzes %}
+      <tr style="border-top:1px solid var(--border)">
+        <td style="padding:.7rem 1rem;font-weight:600;font-size:.88rem">{{ q.title }}</td>
+        <td style="padding:.7rem 1rem;font-size:.85rem;color:var(--text2)">{{ q.subject.name if q.subject else '—' }}</td>
+        <td style="padding:.7rem 1rem;font-size:.85rem">{{ q.questions|length }}</td>
+        <td style="padding:.7rem 1rem;font-size:.85rem">{{ q.duration_minutes or 30 }}m</td>
+        <td style="padding:.7rem 1rem;font-size:.85rem">
+          <a href="{{ url_for('admin.quiz_attempts', qid=q.id) }}" style="color:var(--primary)">{{ q.attempts|length }}</a>
+        </td>
+        <td style="padding:.7rem 1rem">
+          <div style="display:flex;gap:.3rem;flex-wrap:wrap">
+            {% if q.fullscreen_req %}<span class="badge badge-purple">🖥 FS</span>{% endif %}
+            {% if q.webcam_req %}<span class="badge badge-amber">📷 Cam</span>{% endif %}
+            <span class="badge badge-red" title="Max violations">{{ q.max_violations or 3 }}v</span>
+          </div>
+        </td>
+        <td style="padding:.7rem 1rem">
+          <span class="badge badge-{{ 'green' if q.is_active else 'red' }}">{{ 'Active' if q.is_active else 'Inactive' }}</span>
+        </td>
+        <td style="padding:.7rem 1rem">
+          <div style="display:flex;gap:.3rem">
+            <button onclick="toggleQuiz({{ q.id }},this)" class="btn btn-ghost btn-sm">{{ 'Pause' if q.is_active else 'Activate' }}</button>
+            <button onclick="if(confirm('Delete this quiz?'))fetch('/admin/quizzes/{{ q.id }}/delete',{method:'POST'}).then(()=>location.reload())" class="btn btn-danger btn-sm">Delete</button>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center;padding:2.5rem;color:var(--text3)">No quizzes yet. <a href="{{ url_for('admin.quiz_create') }}">Create one</a></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleQuiz(id, btn) {
+  fetch(`/admin/quizzes/${id}/toggle`,{method:'POST'}).then(r=>r.json()).then(d=>{
+    btn.textContent = d.active ? 'Pause' : 'Activate';
+    const badge = btn.closest('tr').querySelector('.badge');
+    badge.className = `badge badge-${d.active?'green':'red'}`;
+    badge.textContent = d.active ? 'Active' : 'Inactive';
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Group Chat{% endblock %}
+{% block content %}
+<div class="page-container chat-page">
+  <div class="chat-layout">
+
+    <!-- Sidebar: rooms list -->
+    <div class="chat-sidebar">
+      <div class="chat-sidebar-header">
+        <span>Chat Rooms</span>
+        <button onclick="openNewRoomModal()" class="chat-new-room-btn" title="New Room">+</button>
+      </div>
+      <div class="chat-sidebar-rooms">
+        {% for r in rooms %}
+        <a href="{{ url_for('chat.room', room_id=r.id) }}"
+           class="chat-room-btn {% if current_room and current_room.id == r.id %}active{% endif %}">
+          <span class="chat-room-dot"></span>
+          <div class="chat-room-meta">
+            <div class="chat-room-name">{{ r.name }}</div>
+            {% if r.subject %}<div class="chat-room-subject">{{ r.subject.name }}</div>{% endif %}
+          </div>
+        </a>
+        {% else %}
+        <div class="chat-empty-message">No rooms yet</div>
+        {% endfor %}
+      </div>
+      <div class="chat-sidebar-footer">
+        <button onclick="openNewRoomModal()"
+                class="btn btn-primary btn-sm btn-full">+ Create Room</button>
+      </div>
+    </div>
+
+    <!-- Main chat area -->
+    {% if current_room %}
+    <div class="chat-main">
+      <div class="chat-main-header">
+        <div>
+          <div class="bold"># {{ current_room.name }}</div>
+          {% if current_room.subject %}<div class="small text-muted">{{ current_room.subject.name }}</div>{% endif %}
+        </div>
+        <span class="badge badge-green small">Live</span>
+      </div>
+
+      <div class="chat-messages" id="chat-msgs">
+        {% if messages %}
+          {% for m in messages %}
+          <div class="chat-bubble-wrap {% if m.user_id == current_user.id %}me{% else %}them{% endif %}" data-id="{{ m.id }}">
+            {% if m.user_id != current_user.id %}
+            <div class="chat-sender">{{ m.username }}</div>
+            {% endif %}
+            <div class="chat-bubble">{{ m.message }}</div>
+            <div class="chat-time">{{ m.created_at }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="chat-empty-state">
+          <p>No messages yet. Be the first to say something!</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="chat-input-bar">
+        <input type="text" id="chat-input" class="chat-input"
+               placeholder="Type a message… (Enter to send)" autocomplete="off"
+               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}">
+        <button onclick="sendMsg()" class="btn btn-primary btn-sm chat-send-btn">Send</button>
+      </div>
+    </div>
+    {% else %}
+    <div class="chat-placeholder">
+      <h2>Welcome to Group Chat</h2>
+      <p>Select a room from the sidebar to start chatting with your classmates.</p>
+      <button onclick="openNewRoomModal()" class="btn btn-primary">
+        + Create a Room
+      </button>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- New Room Modal -->
+<div id="new-room-modal" class="modal-overlay">
+  <div class="modal">
+    <h2>Create Room</h2>
+    <div class="form-group"><label>Room Name *</label>
+      <input type="text" id="new-room-name" class="form-input" placeholder="e.g. Physics Study Group"></div>
+    <div class="form-group"><label>Link to Subject (optional)</label>
+      <select id="new-room-subj" class="form-input">
+        <option value="">— None —</option>
+        {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+      </select></div>
+    <div class="modal-actions">
+      <button onclick="createRoom()" class="btn btn-primary">Create Room</button>
+      <button onclick="closeNewRoomModal()" class="btn btn-ghost">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const msgs      = document.getElementById('chat-msgs');
+if (msgs) msgs.scrollTop = msgs.scrollHeight;
+
+const ROOM_ID = {{ current_room.id if current_room else 'null' }};
+const MY_ID   = {{ current_user.id }};
+let lastId    = 0;
+document.querySelectorAll('[data-id]').forEach(el => lastId = Math.max(lastId, +el.dataset.id || 0));
+
+function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function appendMsg(m) {
+  const mine = m.user_id === MY_ID;
+  const div  = document.createElement('div');
+  div.className = `chat-bubble-wrap ${mine?'me':'them'}`;
+  div.dataset.id = m.id;
+  div.innerHTML = `${!mine?`<div class="chat-sender">${esc(m.username)}</div>`:''}
+    <div class="chat-bubble">${esc(m.message)}</div>
+    <div class="chat-time">${m.created_at}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  lastId = Math.max(lastId, m.id);
+}
+
+function sendMsg() {
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+  if (!text || !ROOM_ID) return;
+  input.value = '';
+  fetch(`/groupchat/room/${ROOM_ID}/send`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({message: text})
+  }).then(r=>r.json()).then(m => { if (!m.error) appendMsg(m); });
+}
+
+// Poll for new messages every 3s
+if (ROOM_ID) {
+  setInterval(() => {
+    fetch(`/groupchat/room/${ROOM_ID}/messages?since=${lastId}`)
+      .then(r=>r.json())
+      .then(ms => ms.forEach(m => { if (m.user_id !== MY_ID) appendMsg(m); }))
+      .catch(()=>{});
+  }, 3000);
+}
+
+function openNewRoomModal(){
+  const modal = document.getElementById('new-room-modal');
+  if(modal) modal.classList.add('open');
+}
+
+function closeNewRoomModal(){
+  const modal = document.getElementById('new-room-modal');
+  if(modal) modal.classList.remove('open');
+}
+
+function createRoom() {
+  const name  = document.getElementById('new-room-name').value.trim();
+  const subj  = document.getElementById('new-room-subj').value;
+  if (!name) return;
+  const fd = new FormData();
+  fd.append('name', name);
+  if (subj) fd.append('subject_id', subj);
+  fetch('/groupchat/room/create', {method:'POST', body:fd})
+    .then(r=>r.json()).then(d => {
+      if (d.room_id) window.location = `/groupchat/room/${d.room_id}`;
+    });
+}
+</script>
+{% endblock %}

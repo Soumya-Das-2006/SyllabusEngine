@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Processing Syllabus{% endblock %}
+{% block body_class %}page-auth{% endblock %}
+{% block content %}
+
+<div class="auth-container">
+  <div class="processing-card">
+    <div class="processing-animation" id="anim">
+      <div class="gear-wrap" id="gear">⚙️</div>
+    </div>
+
+    <h1 id="status-title">Analyzing Your Syllabus</h1>
+    <p id="status-msg" class="text-muted" style="margin-top:.25rem">
+      Extracting text and running 2-pass AI analysis — usually 15–30 seconds...
+    </p>
+
+    {% if syllabus.ocr_used %}
+    <div style="background:var(--amber-bg);border:1px solid var(--amber-b);border-radius:var(--r-sm);
+                padding:.65rem 1rem;margin:1rem 0;font-size:.82rem;color:#92400e">
+      ⚠️ OCR was used on some pages — please review dates carefully in the confirmation step.
+    </div>
+    {% endif %}
+
+    <div class="steps-progress">
+      <div class="step-item" id="step-extract">
+        <span class="step-dot"></span>
+        <span>Extracting text from PDF</span>
+        <span class="step-check">✓</span>
+      </div>
+      <div class="step-item" id="step-pass1">
+        <span class="step-dot"></span>
+        <span>Pass 1 — extracting facts, deadlines, exams</span>
+        <span class="step-check">✓</span>
+      </div>
+      <div class="step-item" id="step-pass2">
+        <span class="step-dot"></span>
+        <span>Pass 2 — building your study plan</span>
+        <span class="step-check">✓</span>
+      </div>
+      <div class="step-item" id="step-done">
+        <span class="step-dot"></span>
+        <span>Ready for your review</span>
+        <span class="step-check">✓</span>
+      </div>
+    </div>
+
+    <div id="error-box" class="error-box" style="display:none">
+      <p id="error-msg"></p>
+      <a href="{{ url_for('upload.upload_page', subject_id=subject.id) }}"
+         class="btn btn-outline btn-sm">← Try Again</a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const syllabusId = {{ syllabus.id }};
+const stepIds = ['step-extract', 'step-pass1', 'step-pass2', 'step-done'];
+let currentStep = 0;
+
+function activateStep(idx) {
+  stepIds.forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.className = 'step-item' + (i < idx ? ' done' : i === idx ? ' active' : '');
+  });
+}
+
+activateStep(0);
+
+// Auto advance steps visually every 7s even without poll data
+const visualInterval = setInterval(() => {
+  if (currentStep < stepIds.length - 1) {
+    currentStep++;
+    activateStep(currentStep);
+  }
+}, 7000);
+
+async function poll() {
+  try {
+    const res = await fetch(`/api/upload/status/${syllabusId}`);
+    const data = await res.json();
+
+    if (data.status === 'awaiting_confirmation') {
+      clearInterval(visualInterval);
+      activateStep(4);
+      document.getElementById('gear').textContent = '✅';
+      document.getElementById('gear').style.animation = 'none';
+      document.getElementById('status-title').textContent = '✅ Analysis Complete!';
+      document.getElementById('status-msg').textContent = 'Redirecting to confirmation screen...';
+      setTimeout(() => { window.location.href = data.redirect; }, 1200);
+      return;
+
+    } else if (data.status === 'failed') {
+      clearInterval(visualInterval);
+      document.getElementById('gear').textContent = '❌';
+      document.getElementById('gear').style.animation = 'none';
+      document.getElementById('status-title').textContent = 'Processing Failed';
+      document.getElementById('status-msg').textContent = 'Something went wrong during analysis.';
+      document.getElementById('error-msg').textContent = data.error || 'Unknown error. Please try again with a different PDF.';
+      document.getElementById('error-box').style.display = 'block';
+      return;
+
+    } else if (data.status === 'processing') {
+      setTimeout(poll, 2500);
+    } else {
+      setTimeout(poll, 3000);
+    }
+  } catch (e) {
+    setTimeout(poll, 4000);
+  }
+}
+
+setTimeout(poll, 2000);
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "admin/base.html" %}
+{% block title %}Activity Logs{% endblock %}
+{% block content_inner %}
+<div class="page-header">
+  <div><h1>🧾 Activity Logs</h1><p class="text-muted">Page {{ logs.page }} of {{ logs.pages }}</p></div>
+</div>
+<form method="GET" style="display:flex;gap:.6rem;margin-bottom:1.25rem">
+  <input type="text" name="action" value="{{ action }}" placeholder="Filter by action (e.g. login, quiz_submit)…"
+         style="width:300px;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:.5rem .85rem;
+         font-family:'Inter',sans-serif;font-size:.88rem;background:var(--surface);color:var(--text)">
+  <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+  {% if action %}<a href="{{ url_for('admin.logs') }}" class="btn btn-ghost btn-sm">Clear</a>{% endif %}
+</form>
+<div class="card" style="padding:0;overflow:hidden">
+  <table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:var(--bg2);font-size:.75rem;font-weight:700;color:var(--text2);text-align:left">
+      <th style="padding:.6rem 1rem">Time</th>
+      <th style="padding:.6rem 1rem">User</th>
+      <th style="padding:.6rem 1rem">Action</th>
+      <th style="padding:.6rem 1rem">Detail</th>
+      <th style="padding:.6rem 1rem">IP</th>
+    </tr></thead>
+    <tbody>
+      {% for log in logs.items %}
+      <tr style="border-top:1px solid var(--border)">
+        <td style="padding:.55rem 1rem;font-size:.78rem;color:var(--text3);white-space:nowrap">{{ log.created_at.strftime('%b %d %H:%M:%S') }}</td>
+        <td style="padding:.55rem 1rem;font-size:.85rem;font-weight:500">{{ log.user.name if log.user else '—' }}</td>
+        <td style="padding:.55rem 1rem"><span class="badge badge-purple">{{ log.action }}</span></td>
+        <td style="padding:.55rem 1rem;font-size:.83rem;color:var(--text2);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ log.detail or '—' }}</td>
+        <td style="padding:.55rem 1rem;font-size:.78rem;color:var(--text3)">{{ log.ip or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:center;align-items:center">
+  {% if logs.has_prev %}
+  <a href="?page={{ logs.prev_num }}&action={{ action }}" class="btn btn-outline btn-sm">← Prev</a>
+  {% endif %}
+  <span class="small text-muted">Page {{ logs.page }} / {{ logs.pages }}</span>
+  {% if logs.has_next %}
+  <a href="?page={{ logs.next_num }}&action={{ action }}" class="btn btn-outline btn-sm">Next →</a>
+  {% endif %}
+</div>
+{% endblock %}

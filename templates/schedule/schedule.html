@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Smart Planner{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+    <div>
+      <h1>📅 Smart Study Planner</h1>
+      <p class="text-muted">AI-optimized schedule based on your weak topics and deadlines.</p>
+    </div>
+    <button onclick="document.getElementById('gen-modal').style.display='flex'" class="btn btn-primary">
+      ⚡ Generate Schedule
+    </button>
+  </div>
+
+  {% if grouped %}
+    {% for day, sessions in grouped.items() %}
+    <div style="margin-bottom:1.5rem">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+        <div style="font-size:.82rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">
+          {{ day.strftime('%A, %B %d') }}
+        </div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span class="badge badge-primary">{{ sessions|length }} session{{ 's' if sessions|length != 1 }}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.75rem">
+        {% for s in sessions %}
+        {% set diff_color = 'green' if s.difficulty=='easy' else ('amber' if s.difficulty=='medium' else 'red') %}
+        <div class="card" style="padding:1rem;{% if s.is_done %}opacity:.5{% endif %}" id="sched-{{ s.id }}">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem">
+            <div style="flex:1;min-width:0">
+              <div class="bold" style="font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                {{ s.topic }}
+              </div>
+              <div class="small text-muted" style="margin-top:.2rem">
+                {% if s.time_slot %}⏰ {{ s.time_slot }} · {% endif %}
+                ⏱️ {{ s.duration }}min
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem">
+              <span class="badge badge-{{ diff_color }}">{{ s.difficulty }}</span>
+              <span class="small text-muted">P: {{ "%.2f"|format(s.priority) }}</span>
+            </div>
+          </div>
+          {% if not s.is_done %}
+          <button onclick="markDone({{ s.id }})" class="btn btn-success btn-sm btn-full" style="margin-top:.75rem">
+            ✅ Mark Done
+          </button>
+          {% else %}
+          <div style="margin-top:.75rem;text-align:center;color:var(--green);font-size:.82rem;font-weight:600">
+            ✅ Completed
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <span class="empty-icon">📅</span>
+      <p>No upcoming sessions. Generate a schedule to get started!</p>
+      <button onclick="document.getElementById('gen-modal').style.display='flex'"
+              class="btn btn-primary" style="margin-top:1rem">⚡ Generate Now</button>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Generate Modal -->
+<div id="gen-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+     z-index:1000;align-items:center;justify-content:center;padding:1rem">
+  <div class="card" style="width:100%;max-width:440px">
+    <h2 style="margin-bottom:1.25rem">⚡ Generate Smart Schedule</h2>
+    <form method="POST" action="{{ url_for('schedule.generate') }}">
+      <div class="form-group">
+        <label class="form-label">Hours Available Per Day</label>
+        <input type="number" name="hours_per_day" class="form-input" value="2" min="0.5" max="12" step="0.5">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Plan for How Many Days?</label>
+        <input type="number" name="days" class="form-input" value="14" min="1" max="30">
+      </div>
+      <div style="background:var(--primary-ll);border:1px solid var(--primary-l);
+           border-radius:var(--r);padding:.85rem;margin-bottom:1.25rem">
+        <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer">
+          <input type="checkbox" name="ai_advice" checked>
+          <div>
+            <div class="bold small">🤖 Get AI Schedule Tips</div>
+            <div class="small text-muted">Kai will analyze your plan and suggest improvements</div>
+          </div>
+        </label>
+      </div>
+      <div style="display:flex;gap:.75rem">
+        <button type="submit" class="btn btn-primary" style="flex:1">Generate</button>
+        <button type="button" onclick="document.getElementById('gen-modal').style.display='none'"
+                class="btn btn-ghost">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function markDone(id) {
+  fetch(`/schedule/mark-done/${id}`, {method:'POST'})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        const el = document.getElementById('sched-'+id);
+        el.style.opacity = '.5';
+        el.querySelector('button').outerHTML =
+          '<div style="margin-top:.75rem;text-align:center;color:var(--green);font-size:.82rem;font-weight:600">✅ Completed</div>';
+      }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Start Quiz{% endblock %}
+{% block content %}
+<div class="page-container page-narrow">
+  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem">
+    <a href="{{ url_for('quiz.quiz_home') }}" class="btn btn-ghost btn-sm">← Back</a>
+    <div><h1>Configure Quiz</h1><p class="text-muted">Choose your topic and difficulty.</p></div>
+  </div>
+  <div class="card">
+    <form method="POST" id="quiz-form">
+      <div class="form-group">
+        <label class="form-label">📚 Topic <span style="color:var(--red)">*</span></label>
+        <input type="text" name="topic" class="form-input" required autofocus
+               placeholder="e.g. Binary Trees, Photosynthesis, French Revolution">
+        <span class="hint">Be specific for better AI-generated questions</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🏷️ Subject (optional)</label>
+        <select name="subject_id" class="form-input">
+          <option value="">— No subject —</option>
+          {% for s in subjects %}
+            <option value="{{ s.id }}">{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🎚️ Difficulty</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-top:.5rem">
+          {% for d, icon, desc in [('easy','🟢','Definitions & recall'),('medium','🟡','Concepts & application'),('hard','🔴','Analysis & problem-solving')] %}
+          <label style="border:2px solid var(--border);border-radius:var(--r);padding:1rem;
+                 cursor:pointer;text-align:center;transition:all .15s" id="card-{{ d }}"
+                 onclick="selectDiff('{{ d }}')">
+            <input type="radio" name="difficulty" value="{{ d }}"
+                   {% if d == 'medium' %}checked{% endif %} style="display:none">
+            <div style="font-size:1.6rem;margin-bottom:.3rem">{{ icon }}</div>
+            <div class="bold" style="font-size:.9rem">{{ d.capitalize() }}</div>
+            <div class="small text-muted">{{ desc }}</div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div style="background:var(--primary-ll);border:1px solid var(--primary-l);
+           border-radius:var(--r);padding:1rem;margin-bottom:1.25rem">
+        <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer">
+          <input type="checkbox" name="auto_difficulty" id="auto_diff">
+          <div>
+            <div class="bold">🤖 Auto-Adjust Difficulty</div>
+            <div class="small text-muted">
+              Override with AI recommendation:
+              <span class="badge badge-{{ 'green' if auto_difficulty=='easy' else ('amber' if auto_difficulty=='medium' else 'red') }}">{{ auto_difficulty }}</span>
+            </div>
+          </div>
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🔢 Number of Questions: <strong id="num-val">5</strong></label>
+        <input type="range" name="num_questions" id="num-range" min="3" max="15" value="5" style="width:100%">
+        <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text3)">
+          <span>3 (quick)</span><span>15 (thorough)</span>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full btn-lg" id="gen-btn">🚀 Generate Quiz</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function selectDiff(d) {
+  ['easy','medium','hard'].forEach(x => {
+    const c = document.getElementById('card-'+x);
+    c.style.borderColor = x===d ? 'var(--primary)' : 'var(--border)';
+    c.style.background  = x===d ? 'var(--primary-ll)' : '';
+  });
+}
+selectDiff('medium');
+document.getElementById('auto_diff').addEventListener('change', function() {
+  const cards = document.querySelectorAll('[id^="card-"]');
+  cards.forEach(c => c.style.opacity = this.checked ? '.45' : '1');
+  document.querySelectorAll('[name="difficulty"]').forEach(r => r.disabled = this.checked);
+});
+const range = document.getElementById('num-range');
+range.addEventListener('input', () => document.getElementById('num-val').textContent = range.value);
+document.getElementById('quiz-form').addEventListener('submit', () => {
+  const b = document.getElementById('gen-btn');
+  b.textContent = '⏳ Generating with AI…'; b.disabled = true;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Quiz Center{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="quiz-hero">
+    <h1 class="quiz-hero-title">Quiz Center</h1>
+    <p class="quiz-hero-subtitle">AI-powered quizzes that adapt to your level.</p>
+    <div class="quiz-hero-stats">
+      <div class="quiz-hero-stat">
+        <span class="quiz-hero-stat-label">Attempts</span>
+        <span class="quiz-hero-stat-value">{{ total_attempts }}</span>
+      </div>
+      <div class="quiz-hero-stat">
+        <span class="quiz-hero-stat-label">Average score</span>
+        <span class="quiz-hero-stat-value">{{ avg_score }}%</span>
+      </div>
+      <div class="quiz-hero-stat">
+        <span class="quiz-hero-stat-label">Recommended</span>
+        <span class="quiz-hero-stat-value text-capitalize">{{ recommended_difficulty }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="quiz-main-grid">
+    <div class="card">
+      <h2 style="margin-bottom:1rem">Start a Quiz</h2>
+      <p class="text-muted" style="margin-bottom:1.25rem">Generate an AI-powered adaptive quiz on any topic.</p>
+      <a href="{{ url_for('quiz.quiz_start') }}" class="btn btn-primary btn-full">Generate Quiz</a>
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <p class="small text-muted">
+          Adaptive mode will set difficulty to
+          <span class="badge badge-{{ 'green' if recommended_difficulty == 'easy' else ('amber' if recommended_difficulty == 'medium' else 'red') }}">
+            {{ recommended_difficulty }}</span> based on your history.
+        </p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="dashboard-section-header">
+        <h2>Recent Attempts</h2>
+        <a href="{{ url_for('quiz.quiz_history') }}" class="btn btn-ghost btn-sm">All →</a>
+      </div>
+      {% if recent_attempts %}
+        {% for a in recent_attempts %}
+        {% set ring = 'green' if a.accuracy_pct >= 80 else ('amber' if a.accuracy_pct >= 50 else 'red') %}
+        <div class="quiz-attempt-row">
+          <div class="quiz-attempt-ring quiz-attempt-ring-{{ ring }}">
+            {{ a.accuracy_pct|int }}%
+          </div>
+          <div class="quiz-attempt-main">
+            <div class="bold small quiz-attempt-topic">{{ a.quiz.topic }}</div>
+            <div class="small text-muted">{{ a.completed_at.strftime('%b %d') }} · {{ a.difficulty_used }}</div>
+          </div>
+          <a href="{{ url_for('quiz.quiz_result', attempt_id=a.id) }}" class="btn btn-ghost btn-sm">Review</a>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state" style="padding:1.5rem">
+          <span class="empty-icon">No quizzes</span>
+          <p>No quizzes yet. Start one!</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if assigned_quizzes %}
+  <div class="card" style="margin-bottom:1.5rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h2>Assigned Quizzes</h2>
+      <span class="small text-muted">New quizzes from your teacher</span>
+    </div>
+    {% for q in assigned_quizzes %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div class="bold small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ q.title }}</div>
+        <div class="small text-muted">
+          {{ q.subject.name if q.subject else 'General' }}
+          · {{ q.questions|length }} questions
+          · {{ q.duration_minutes or 30 }}m
+        </div>
+      </div>
+      <a href="{{ url_for('quiz.assigned_quiz_start', quiz_id=q.id) }}" class="btn btn-ghost btn-sm">Start</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="quiz-links-grid">
+    <a href="{{ url_for('analytics.dashboard') }}" class="card quiz-link-card">
+      <div class="bold">Analytics</div>
+      <div class="small text-muted">Full performance report</div>
+    </a>
+    <a href="{{ url_for('quiz.quiz_history') }}" class="card quiz-link-card">
+      <div class="bold">History</div>
+      <div class="small text-muted">All past attempts</div>
+    </a>
+    <a href="{{ url_for('schedule.schedule_home') }}" class="card quiz-link-card">
+      <div class="bold">Smart Planner</div>
+      <div class="small text-muted">AI study schedule</div>
+    </a>
+  </div>
+</div>
+{% endblock %}

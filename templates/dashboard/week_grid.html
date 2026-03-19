@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}{{ subject.name }} — Study Plan{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block content %}
+
+<div class="page-container">
+
+  <!-- ── PAGE HEADER ── -->
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">
+        <a href="{{ url_for('subjects.index') }}">Subjects</a> /
+        <span>{{ subject.name }}</span>
+      </div>
+      <h1>{{ subject.name }}</h1>
+      <p class="text-muted">
+        {{ subject.semester_length }}-week plan ·
+        {% if subject.start_date %}
+          Started {{ subject.start_date.strftime('%B %d, %Y') }}
+        {% else %}
+          Start date not set
+        {% endif %}
+      </p>
+    </div>
+    <div class="page-header-actions">
+      <a href="{{ url_for('assistant.chat_page', subject_id=subject.id) }}" class="btn btn-outline">🤖 Ask Kai</a>
+      <a href="{{ url_for('calendar.view', subject_id=subject.id) }}" class="btn btn-outline">📅 Calendar</a>
+      <a href="{{ url_for('study_plan.progress', subject_id=subject.id) }}" class="btn btn-primary">📊 Progress</a>
+    </div>
+  </div>
+
+  <!-- ── EXAM ALERTS ── -->
+  {% for exam in exams %}
+    {% if exam.exam_date %}
+    <div class="exam-alert">
+      <span class="exam-alert-icon">📝</span>
+      <div style="flex:1">
+        <strong>{{ exam.name }}</strong>
+        <span class="text-muted" style="font-size:.82rem"> — {{ exam.exam_date.strftime('%B %d, %Y') }}</span>
+        {% if exam.confidence == 'low' %}
+          <span class="badge badge-amber" style="margin-left:8px">⚠️ Verify date</span>
+        {% endif %}
+      </div>
+      <span class="exam-alert-badge">
+        {% set days = (exam.exam_date - today).days %}
+        {% if days < 0 %}
+          Passed
+        {% elif days == 0 %}
+          Today!
+        {% elif days == 1 %}
+          Tomorrow
+        {% else %}
+          {{ days }} days away
+        {% endif %}
+      </span>
+    </div>
+    {% endif %}
+  {% endfor %}
+
+  <!-- ── LEGEND ── -->
+  <div class="week-legend">
+    <span class="legend-item"><span class="legend-dot light"></span> Light week</span>
+    <span class="legend-item"><span class="legend-dot medium"></span> Moderate week</span>
+    <span class="legend-item"><span class="legend-dot heavy"></span> Heavy week</span>
+    <span class="legend-item"><span class="legend-dot exam"></span> Exam week</span>
+    <span class="legend-item"><span class="legend-dot current"></span> Current week</span>
+  </div>
+
+  <!-- ── WEEK GRID ── -->
+  <div class="week-grid">
+    {% for wd in week_data %}
+    {% set w = wd.week %}
+    <a href="{{ url_for('study_plan.week_detail', subject_id=subject.id, week_num=w.week_number) }}"
+       class="week-tile intensity-{{ wd.intensity }}
+              {% if w.is_exam_week %} week-exam{% endif %}
+              {% if wd.is_current %} week-current{% endif %}">
+
+      <div class="week-tile-header">
+        <span class="week-tile-num">Week {{ w.week_number }}</span>
+        <div style="display:flex;gap:4px">
+          {% if wd.is_current %}
+            <span class="current-badge">NOW</span>
+          {% endif %}
+          {% if w.is_exam_week %}
+            <span class="exam-badge">EXAM</span>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if w.date_start %}
+      <div class="week-tile-date">
+        {{ w.date_start.strftime('%b %d') }}
+        {% if w.date_end %} – {{ w.date_end.strftime('%b %d') }}{% endif %}
+      </div>
+      {% endif %}
+
+      <div class="week-tile-topics">
+        {% for t in w.get_topics()[:2] %}
+          <div class="week-tile-topic">{{ t }}</div>
+        {% endfor %}
+        {% if w.get_topics()|length > 2 %}
+          <div class="week-tile-more">+{{ w.get_topics()|length - 2 }} more topics</div>
+        {% endif %}
+        {% if not w.get_topics() %}
+          <div class="week-tile-more" style="font-style:italic">No topics listed</div>
+        {% endif %}
+      </div>
+
+      <div class="week-tile-footer">
+        <div style="display:flex;gap:5px;align-items:center">
+          {% if wd.num_assignments > 0 %}
+            <span class="tile-badge-assign">
+              {{ wd.num_assignments }} task{% if wd.num_assignments > 1 %}s{% endif %}
+            </span>
+          {% endif %}
+          <span class="difficulty-chip difficulty-{{ w.difficulty }}" style="font-size:.62rem;padding:1px 5px">
+            {{ w.difficulty }}
+          </span>
+        </div>
+        <span class="tile-hours">{{ w.recommended_hours }}h</span>
+      </div>
+
+      {% if w.completion_pct > 0 %}
+      <div class="week-tile-progress">
+        <div class="week-tile-bar" style="width:{{ w.completion_pct }}%"></div>
+      </div>
+      {% endif %}
+
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- ── BOTTOM ACTIONS ── -->
+  <div style="display:flex;justify-content:space-between;align-items:center;
+              margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border);flex-wrap:wrap;gap:1rem">
+    <div style="font-size:.85rem;color:var(--text2)">
+      Showing {{ week_data|length }} weeks ·
+      <strong>{{ week_data|selectattr('week.is_exam_week')|list|length }}</strong> exam weeks ·
+      Current: Week {{ current_week_num }}
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="{{ url_for('upload.upload_page', subject_id=subject.id) }}" class="btn btn-ghost btn-sm">
+        🔄 Re-upload Syllabus
+      </a>
+      <a href="{{ url_for('study_plan.week_detail', subject_id=subject.id, week_num=current_week_num) }}"
+         class="btn btn-primary btn-sm">
+        → Go to Week {{ current_week_num }}
+      </a>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Highlight current week on load
+document.querySelectorAll('.week-current').forEach(el => {
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+</script>
+{% endblock %}

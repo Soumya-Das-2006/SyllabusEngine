@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<div class="admin-page-header">
+  <div>
+    <h1>Add testimonial</h1>
+    <p class="text-muted">Add a student story to show on the public site.</p>
+  </div>
+</div>
+
+<form method="POST" action="{{ url_for('admin.testimonials_add') }}" enctype="multipart/form-data" class="card">
+  <div class="form-group">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" required>
+  </div>
+  <div class="form-group">
+    <label for="feedback">Feedback</label>
+    <textarea id="feedback" name="feedback" rows="5" required></textarea>
+  </div>
+  <div class="form-group">
+    <label for="photo">Photo (optional)</label>
+    <input type="file" id="photo" name="photo" accept="image/*">
+    <p class="text-muted small">Stored under static/uploads/testimonials.</p>
+  </div>
+  <button type="submit" class="btn btn-primary">Save testimonial</button>
+</form>
+{% endblock %}

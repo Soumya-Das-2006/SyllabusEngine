@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Services{% endblock %}
+{% block body_class %}page-public{% endblock %}
+{% block content %}
+<div class="page-container page-narrow">
+  <header class="page-header">
+    <div>
+      <h1>Services</h1>
+      <p class="text-muted">Everything the Syllabus-to-Success Engine does for you.</p>
+    </div>
+  </header>
+
+  <section class="section-block">
+    <h2>Core services</h2>
+<div class="lp-features-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div class="lp-feature-card glass-card feature-card group hover:neon-glow">
+        <h3 class="lp-feature-title">Syllabus ingestion</h3>
+        <p class="lp-feature-desc">Upload any syllabus PDF and let the engine extract subjects, units, topics, exams, and timelines automatically.</p>
+      </div>
+      <div class="lp-feature-card">
+        <h3 class="lp-feature-title">Smart study planning</h3>
+        <p class="lp-feature-desc">Generate a week-by-week study plan that balances topics, difficulty, and your available time.</p>
+      </div>
+      <div class="lp-feature-card">
+        <h3 class="lp-feature-title">AI study assistant</h3>
+        <p class="lp-feature-desc">Use AI modes to explain topics, generate notes, create questions, and practice before exams.</p>
+      </div>
+      <div class="lp-feature-card">
+        <h3 class="lp-feature-title">Quiz &amp; assessment</h3>
+        <p class="lp-feature-desc">Take proctored quizzes with anti-cheat checks, instant scoring, and auto-generated certificates.</p>
+      </div>
+      <div class="lp-feature-card">
+        <h3 class="lp-feature-title">Analytics &amp; progress</h3>
+        <p class="lp-feature-desc">Track completion, weak topics, streaks, and performance across subjects with visual dashboards.</p>
+      </div>
+      <div class="lp-feature-card">
+        <h3 class="lp-feature-title">Collaboration &amp; chat</h3>
+        <p class="lp-feature-desc">Join structured group chats to discuss topics, share resources, and keep accountability high.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-block">
+    <h2>Process: from upload to success</h2>
+    <ol class="feature-list">
+      <li><strong>1. Upload</strong> · Choose your syllabus PDF and upload it securely to the platform.</li>
+      <li><strong>2. Parse</strong> · The engine reads headings, units, dates, and exam details using AI and heuristics.</li>
+      <li><strong>3. Plan</strong> · A study plan is generated and split into weeks with suggested daily workload.</li>
+      <li><strong>4. Learn</strong> · Use AI assistance, notes, and quizzes to cover each topic on schedule.</li>
+      <li><strong>5. Track</strong> · Monitor your progress on dashboards, fix weak areas, and stay exam-ready.</li>
+    </ol>
+  </section>
+
+  <section class="section-block">
+    <h2>Who this is for</h2>
+    <ul class="feature-list">
+      <li>Students who want a clear roadmap from day one of the semester.</li>
+      <li>Learners juggling multiple subjects and deadlines across different courses.</li>
+      <li>Exam-focused students who want analytics and practice built into their routine.</li>
+    </ul>
+  </section>
+</div>
+{% endblock %}

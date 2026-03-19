@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<div class="admin-page-header">
+  <div>
+    <h1>Add news article</h1>
+    <p class="text-muted">Publish a new update to the public News &amp; Updates page.</p>
+  </div>
+</div>
+
+<form method="POST" action="{{ url_for('admin.news_add') }}" enctype="multipart/form-data" class="card">
+  <div class="form-group">
+    <label for="title">Title</label>
+    <input type="text" id="title" name="title" required>
+  </div>
+  <div class="form-group">
+    <label for="summary">Short description</label>
+    <textarea id="summary" name="summary" rows="2" placeholder="Optional summary shown on cards"></textarea>
+  </div>
+  <div class="form-group">
+    <label for="content">Content</label>
+    <textarea id="content" name="content" rows="10" required placeholder="You can paste formatted HTML or plain text."></textarea>
+  </div>
+  <div class="form-group">
+    <label for="image">Featured image (optional)</label>
+    <input type="file" id="image" name="image" accept="image/*">
+    <p class="text-muted small">Stored under static/uploads/news. JPG, PNG, GIF, WebP only.</p>
+  </div>
+  <button type="submit" class="btn btn-primary">Publish</button>
+</form>
+{% endblock %}

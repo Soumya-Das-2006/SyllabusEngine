@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Week {{ week.week_number }} — {{ subject.name }}{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block content %}
+<div class="page-container">
+  <!-- NAVIGATION -->
+  <div class="week-nav">
+    <div class="breadcrumb">
+      <a href="{{ url_for('subjects.index') }}">Subjects</a> /
+      <a href="{{ url_for('study_plan.week_grid', subject_id=subject.id) }}">{{ subject.name }}</a> /
+      Week {{ week.week_number }}
+    </div>
+    <div class="week-nav-arrows">
+      {% if prev_week %}
+      <a href="{{ url_for('study_plan.week_detail', subject_id=subject.id, week_num=prev_week) }}" class="btn btn-ghost btn-sm">← Week {{ prev_week }}</a>
+      {% endif %}
+      <span class="week-nav-current">Week {{ week.week_number }} / {{ total_weeks }}</span>
+      {% if next_week %}
+      <a href="{{ url_for('study_plan.week_detail', subject_id=subject.id, week_num=next_week) }}" class="btn btn-ghost btn-sm">Week {{ next_week }} →</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- WEEK HEADER -->
+  <div class="week-detail-header difficulty-bg-{{ week.difficulty }}">
+    <div class="week-detail-info">
+      <h1>Week {{ week.week_number }}</h1>
+      {% if week.date_start %}
+      <p>{{ week.date_start.strftime('%B %d') }} – {{ week.date_end.strftime('%B %d, %Y') if week.date_end else '' }}</p>
+      {% endif %}
+      <div class="week-tags">
+        <span class="difficulty-chip difficulty-{{ week.difficulty }}">{{ week.difficulty }}</span>
+        {% if week.is_exam_week %}<span class="difficulty-chip difficulty-hard">Exam Week</span>{% endif %}
+        <span class="hours-chip">{{ week.recommended_hours }} hrs recommended</span>
+      </div>
+    </div>
+    <div class="week-detail-progress">
+      <div class="radial-progress" data-pct="{{ week.completion_pct }}">
+        <svg viewBox="0 0 36 36">
+          <path class="progress-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+          <path class="progress-fg" stroke-dasharray="{{ week.completion_pct }}, 100"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+        </svg>
+        <span>{{ week.completion_pct }}%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI STUDY ADVICE -->
+  {% if week.study_advice %}
+  <div class="kai-advice">
+    <div class="kai-avatar">🤖</div>
+    <div class="kai-bubble">
+      <strong>Kai says:</strong>
+      <p>{{ week.study_advice }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="week-detail-grid">
+    <!-- TOPICS -->
+    <div class="detail-section">
+      <h2>📚 Topics This Week</h2>
+      {% set topics = week.get_topics() %}
+      {% if topics %}
+      <ul class="topics-list">
+        {% for topic in topics %}
+        <li class="topic-item">
+          <button class="check-circle {% if ('topic-' + loop.index|string) in completed_keys %}checked{% endif %}"
+                  data-week="{{ week.id }}" data-type="topic" data-key="topic-{{ loop.index }}"
+                  onclick="markItem(this)">
+            {% if ('topic-' + loop.index|string) in completed_keys %}✓{% else %}○{% endif %}
+          </button>
+          <span>{{ topic }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted">No specific topics listed for this week.</p>
+      {% endif %}
+    </div>
+
+    <!-- ASSIGNMENTS -->
+    <div class="detail-section">
+      <h2>📋 Assignments & Deadlines</h2>
+      {% if assignments %}
+      <div class="assignments-detail-list">
+        {% for a in assignments %}
+        <div class="assignment-detail-card {% if a.is_completed %}completed{% endif %}">
+          <div class="adc-header">
+            <span class="adc-title">{{ a.title }}</span>
+            <button class="check-circle {% if a.is_completed %}checked{% endif %}"
+                    onclick="toggleAssignment(this, {{ a.id }})">
+              {% if a.is_completed %}✓{% else %}○{% endif %}
+            </button>
+          </div>
+          {% if a.due_date %}
+          <div class="adc-due">
+            Due: <strong>{{ a.due_date.strftime('%B %d, %Y') }}</strong>
+            {% if a.confidence == 'low' %}<span class="confidence-badge confidence-low">verify date</span>{% endif %}
+          </div>
+          {% endif %}
+          {% if a.estimated_hours %}
+          <div class="adc-hours">~{{ a.estimated_hours }} hours estimated</div>
+          {% endif %}
+          {% set steps = a.get_steps() %}
+          {% if steps %}
+          <details class="adc-steps">
+            <summary>Preparation steps</summary>
+            <ul>{% for s in steps %}<li>{{ s }}</li>{% endfor %}</ul>
+          </details>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-muted">No assignments due this week.</p>
+      {% endif %}
+    </div>
+
+    <!-- READINGS -->
+    {% set readings = week.get_readings() %}
+    {% if readings %}
+    <div class="detail-section">
+      <h2>📖 Readings</h2>
+      <ul class="readings-list">
+        {% for r in readings %}
+        <li>{{ r }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- REVISION TASKS -->
+    {% set revisions = week.get_revision_tasks() %}
+    {% if revisions %}
+    <div class="detail-section">
+      <h2>🔄 Revision Tasks</h2>
+      <ul class="topics-list">
+        {% for task in revisions %}
+        <li class="topic-item">
+          <button class="check-circle {% if ('rev-' + loop.index|string) in completed_keys %}checked{% endif %}"
+                  data-week="{{ week.id }}" data-type="revision" data-key="rev-{{ loop.index }}"
+                  onclick="markItem(this)">
+            {% if ('rev-' + loop.index|string) in completed_keys %}✓{% else %}○{% endif %}
+          </button>
+          <span>{{ task }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- BOTTOM ACTIONS -->
+  <div class="week-detail-footer">
+    <a href="{{ url_for('assistant.chat_page', subject_id=subject.id) }}" class="btn btn-outline">
+      Ask Kai about this week 🤖
+    </a>
+    {% if next_week %}
+    <a href="{{ url_for('study_plan.week_detail', subject_id=subject.id, week_num=next_week) }}" class="btn btn-primary">
+      Next Week →
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function markItem(btn) {
+  const weekId = btn.dataset.week;
+  const type = btn.dataset.type;
+  const key = btn.dataset.key;
+  const completed = !btn.classList.contains('checked');
+  const res = await fetch('/api/progress/mark', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ week_id: weekId, type, key, completed })
+  });
+  const data = await res.json();
+  if (data.success) {
+    btn.classList.toggle('checked');
+    btn.textContent = completed ? '✓' : '○';
+    document.querySelector('.radial-progress span').textContent = data.completion_pct + '%';
+  }
+}
+
+async function toggleAssignment(btn, id) {
+  const res = await fetch('/api/progress/toggle', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id, type: 'assignment' })
+  });
+  const data = await res.json();
+  if (data.success) {
+    btn.classList.toggle('checked');
+    btn.textContent = data.completed ? '✓' : '○';
+    btn.closest('.assignment-detail-card').classList.toggle('completed', data.completed);
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}My Attendance{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div><h1>📋 My Attendance</h1><p class="text-muted">Track your class attendance record</p></div>
+    <form method="GET" style="display:flex;gap:.5rem;align-items:center">
+      <select name="subject_id" style="padding:.42rem .8rem;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--text);font-size:.87rem" onchange="this.form.submit()">
+        <option value="">All Subjects</option>
+        {% for s in subjects %}<option value="{{ s.id }}" {% if subject_id==s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <!-- Summary cards -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;margin-bottom:1.75rem">
+    <div class="card" style="text-align:center;border-top:3px solid var(--primary)">
+      <div style="font-size:2rem;font-weight:800;color:var(--primary)">{{ total }}</div>
+      <div class="small text-muted">Total Classes</div>
+    </div>
+    <div class="card" style="text-align:center;border-top:3px solid var(--green)">
+      <div style="font-size:2rem;font-weight:800;color:var(--green)">{{ present }}</div>
+      <div class="small text-muted">Present</div>
+    </div>
+    <div class="card" style="text-align:center;border-top:3px solid var(--amber)">
+      <div style="font-size:2rem;font-weight:800;color:var(--amber)">{{ late }}</div>
+      <div class="small text-muted">Late</div>
+    </div>
+    <div class="card" style="text-align:center;border-top:3px solid var(--red)">
+      <div style="font-size:2rem;font-weight:800;color:var(--red)">{{ total - present - late }}</div>
+      <div class="small text-muted">Absent</div>
+    </div>
+    <div class="card" style="text-align:center;border-top:3px solid {{ 'var(--green)' if pct >= 75 else ('var(--amber)' if pct >= 60 else 'var(--red)') }}">
+      <div style="font-size:2rem;font-weight:800;color:{{ 'var(--green)' if pct >= 75 else ('var(--amber)' if pct >= 60 else 'var(--red)') }}">{{ pct }}%</div>
+      <div class="small text-muted">Attendance %</div>
+    </div>
+  </div>
+
+  {% if pct < 75 %}
+  <div class="card card-amber" style="margin-bottom:1.25rem">
+    ⚠️ <strong>Warning:</strong> Your attendance is below 75%. This may affect your eligibility for exams.
+  </div>
+  {% endif %}
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:var(--bg2);font-size:.78rem;font-weight:700;color:var(--text2);text-align:left">
+        <th style="padding:.65rem 1rem">Date</th>
+        <th style="padding:.65rem 1rem">Session</th>
+        <th style="padding:.65rem 1rem">Subject</th>
+        <th style="padding:.65rem 1rem">Status</th>
+      </tr></thead>
+      <tbody>
+        {% for r in records %}
+        <tr style="border-top:1px solid var(--border)">
+          <td style="padding:.6rem 1rem;font-size:.87rem;font-weight:600">{{ r.session.date.strftime('%b %d, %Y') }}</td>
+          <td style="padding:.6rem 1rem;font-size:.87rem">{{ r.session.title }}</td>
+          <td style="padding:.6rem 1rem;font-size:.85rem;color:var(--text2)">
+            {{ r.session.subject.name if r.session.subject else '—' }}
+          </td>
+          <td style="padding:.6rem 1rem">
+            <span class="badge att-status-{{ r.status }}">
+              {{ '✅' if r.status=='present' else ('⏰' if r.status=='late' else '❌') }} {{ r.status.capitalize() }}
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="text-align:center;padding:2.5rem;color:var(--text3)">No attendance records yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

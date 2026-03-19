@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}Syllabus-to-Success Engine{% endblock %}
+{% block body_class %}page-home{% endblock %}
+
+{% block content %}
+
+<section class="lp-hero glass-hero">
+  <div class="particles" id="particles"></div>
+  <div class="lp-hero-bg"></div>
+  <div class="container lp-hero-inner">
+    <div class="lp-hero-badge">
+      <span class="lp-badge-dot"></span>
+      ⚡ Syllabus-to-Success Engine · Built for Students
+    </div>
+<h1 class="lp-hero-h1 hero-title text-glow neon-glow">
+      Upload your syllabus.<br>
+      <span class="lp-gradient-text">Master your semester.</span>
+    </h1>
+    <p class="lp-hero-sub">
+      From chaotic PDF to a structured week-by-week plan, smart deadlines,
+      <strong>AI study assistant</strong>, quizzes, and progress analytics — all in under a minute.
+    </p>
+    <div class="lp-hero-cta">
+<a href="{{ url_for('auth.signup') }}" class="btn-primary btn-lp-primary float">🚀 Get Started Free</a>
+      <a href="{{ url_for('auth.login') }}" class="btn-outline btn-lp-outline">🔐 Sign In</a>
+    </div>
+    <div class="lp-stats-pill">
+      <div class="lp-stat"><span class="lp-stat-num">60s</span><span class="lp-stat-label">setup</span></div>
+      <div class="lp-stat-div"></div>
+      <div class="lp-stat"><span class="lp-stat-num">8</span><span class="lp-stat-label">AI modes</span></div>
+      <div class="lp-stat-div"></div>
+      <div class="lp-stat"><span class="lp-stat-num">100%</span><span class="lp-stat-label">free</span></div>
+      <div class="lp-stat-div"></div>
+      <div class="lp-stat"><span class="lp-stat-num">AI</span><span class="lp-stat-label">proctored quizzes</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section" style="background:var(--surface)">
+  <div class="container">
+    <div class="lp-section-label">WHY SYLLABUS-TO-SUCCESS ENGINE</div>
+    <h2 class="lp-section-title">Everything you need to ace your semester</h2>
+    <div class="lp-features-grid">
+      {% set features = [
+        ('📅','Smart Week Planner','Topics, study hours, assignments, and exams — automatically organised.'),
+        ('🤖','AI Study Assistant','Explain topics, generate notes, solve doubts, and more.'),
+        ('🧪','Proctored Quiz System','Anti-cheat quizzes with certificates and detailed analytics.'),
+        ('🏆','Leaderboard & Certs','Compete with peers and earn shareable certificates.'),
+        ('📊','Analytics Dashboard','See weak topics, streaks, and performance trends.'),
+        ('💬','Group Chat','Study together with classmates inside focused rooms.'),
+      ] %}
+      {% for icon, title, desc in features %}
+      <div class="lp-feature-card">
+        <div class="lp-feature-icon">{{ icon }}</div>
+        <h3 class="lp-feature-title">{{ title }}</h3>
+        <p class="lp-feature-desc">{{ desc }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="lp-section lp-hiw">
+  <div class="container">
+    <div class="lp-section-label">HOW IT WORKS</div>
+    <h2 class="lp-section-title">Organised semester in 3 simple steps</h2>
+    <div class="lp-steps">
+      <div class="lp-step">
+        <div class="lp-step-num">01</div>
+        <div class="lp-step-icon">📄</div>
+        <h3>Upload Syllabus</h3>
+        <p>Upload your syllabus PDF. The engine extracts topics, timelines and exams.</p>
+      </div>
+      <div class="lp-step-arrow">→</div>
+      <div class="lp-step">
+        <div class="lp-step-num">02</div>
+        <div class="lp-step-icon">✅</div>
+        <h3>Review & Confirm</h3>
+        <p>Stay in control. Approve or adjust your generated plan in one view.</p>
+      </div>
+      <div class="lp-step-arrow">→</div>
+      <div class="lp-step">
+        <div class="lp-step-num">03</div>
+        <div class="lp-step-icon">🚀</div>
+        <h3>Study on Autopilot</h3>
+        <p>Follow your weekly schedule, take quizzes, and track your progress.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section" style="background:var(--surface)">
+  <div class="container">
+    <div class="lp-section-label">PLATFORM SNAPSHOT</div>
+    <h2 class="lp-section-title">Everything in one place</h2>
+    <div class="lp-features-grid">
+      <div class="lp-feature-card">
+        <h3 class="lp-feature-title">About the engine</h3>
+        <p class="lp-feature-desc">Understand the mission, vision, and how Syllabus-to-Success turns PDFs into a guided learning journey.</p>
+        <a href="{{ url_for('public.about') }}" class="lp-news-link">Learn more about us →</a>
+      </div>
+      <div class="lp-feature-card">
+        <h3 class="lp-feature-title">Services</h3>
+        <p class="lp-feature-desc">From syllabus parsing to AI tutoring, quizzes, analytics, and collaboration — see everything included.</p>
+        <a href="{{ url_for('public.services') }}" class="lp-news-link">Explore all services →</a>
+      </div>
+      <div class="lp-feature-card">
+        <h3 class="lp-feature-title">News &amp; updates</h3>
+        <p class="lp-feature-desc">Track what’s new — feature releases, performance improvements, and upcoming modules.</p>
+        <a href="{{ url_for('public.news_list') }}" class="lp-news-link">View latest news →</a>
+      </div>
+      <div class="lp-feature-card">
+        <h3 class="lp-feature-title">Student stories</h3>
+        <p class="lp-feature-desc">See how other students are using the engine to stay ahead of their semester.</p>
+        <a href="{{ url_for('public.testimonials_page') }}" class="lp-news-link">Read testimonials →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section" style="background:var(--surface)">
+  <div class="container">
+    <div class="lp-section-label">STUDENT STORIES</div>
+    <h2 class="lp-section-title">What learners are saying</h2>
+    <div class="lp-testimonial-grid">
+      {% if testimonials %}
+        {% for t in testimonials %}
+        <article class="lp-testimonial-card">
+          <div class="lp-testimonial-header">
+            <div class="lp-testimonial-avatar">
+              {% if t.photo_url %}
+              <img src="{{ url_for('static', filename=t.photo_url) }}" alt="{{ t.name }}">
+              {% else %}
+              <span>{{ t.name[0]|upper }}</span>
+              {% endif %}
+            </div>
+            <div>
+              <h3 class="lp-testimonial-name">{{ t.name }}</h3>
+              <p class="lp-testimonial-meta">Student</p>
+            </div>
+          </div>
+          <p class="lp-testimonial-text">{{ t.feedback }}</p>
+        </article>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted">Testimonials are coming soon.</p>
+      {% endif %}
+    </div>
+    <div class="lp-section-cta">
+      <a href="{{ url_for('public.testimonials_page') }}" class="btn btn-outline">View all testimonials →</a>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section">
+  <div class="container">
+    <div class="lp-section-label">LATEST NEWS</div>
+    <h2 class="lp-section-title">News &amp; updates</h2>
+    <div class="lp-news-grid">
+      {% if latest_news %}
+        {% for n in latest_news %}
+        <article class="lp-news-card">
+          {% if n.image_url %}
+          <div class="lp-news-image" style="background-image: url(&quot;{{ url_for('static', filename=n.image_url) }}&quot;);"></div>
+          {% endif %}
+          <div class="lp-news-body">
+            <p class="lp-news-date">{{ n.created_at.strftime('%b %d, %Y') }}</p>
+            <h3 class="lp-news-title">{{ n.title }}</h3>
+            <p class="lp-news-summary">{{ n.summary or n.content[:140] ~ ('…' if n.content|length > 140 else '') }}</p>
+            <a href="{{ url_for('public.news_detail', news_id=n.id) }}" class="lp-news-link">Read more →</a>
+          </div>
+        </article>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted">No announcements yet. Stay tuned!</p>
+      {% endif %}
+    </div>
+    <div class="lp-section-cta">
+      <a href="{{ url_for('public.news_list') }}" class="btn btn-outline">View all updates →</a>
+    </div>
+  </div>
+</section>
+
+<section class="lp-cta-section">
+  <div class="container">
+    <div class="lp-cta-card">
+      <div style="font-size:3rem;margin-bottom:.75rem">🎓</div>
+      <h2 class="lp-cta-title">Ready to stop winging it?</h2>
+      <p class="lp-cta-sub">Upload your first syllabus and get your entire semester organised in 60 seconds.</p>
+      <a href="{{ url_for('auth.signup') }}" class="btn-lp-primary" style="font-size:1rem;padding:1rem 2.8rem">
+        Upload your first syllabus →
+      </a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,185 @@
+{% extends "admin/base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content_inner %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<div class="page-header">
+  <div>
+    <h1>🛡️ Admin Dashboard</h1>
+    <p class="text-muted">System overview — real-time monitoring</p>
+  </div>
+  <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+    <button onclick="document.getElementById('broadcast-modal').style.display='flex'" class="btn btn-primary btn-sm">📢 Broadcast</button>
+    <a href="{{ url_for('admin.export_users') }}" class="btn btn-outline btn-sm">📊 Export CSV</a>
+  </div>
+</div>
+
+<!-- Stat cards -->
+<div class="admin-stat-grid">
+  <div class="admin-stat-card" style="border-top:3px solid var(--primary)">
+    <div style="font-size:1.75rem;margin-bottom:.3rem">👥</div>
+    <div class="admin-stat-val" style="color:var(--primary)">{{ total_users }}</div>
+    <div class="admin-stat-label">Total Students</div>
+    <div class="admin-stat-sub"><a href="{{ url_for('admin.users') }}">View all →</a></div>
+  </div>
+  <div class="admin-stat-card" style="border-top:3px solid var(--green)">
+    <div style="font-size:1.75rem;margin-bottom:.3rem">🟢</div>
+    <div class="admin-stat-val" style="color:var(--green)">{{ active_today }}</div>
+    <div class="admin-stat-label">Active Today</div>
+  </div>
+  <div class="admin-stat-card" style="border-top:3px solid var(--blue)">
+    <div style="font-size:1.75rem;margin-bottom:.3rem">🧪</div>
+    <div class="admin-stat-val" style="color:var(--blue)">{{ total_quizzes }}</div>
+    <div class="admin-stat-label">Total Quizzes</div>
+    <div class="admin-stat-sub"><a href="{{ url_for('admin.quiz_list') }}">Manage →</a></div>
+  </div>
+  <div class="admin-stat-card" style="border-top:3px solid var(--amber)">
+    <div style="font-size:1.75rem;margin-bottom:.3rem">📝</div>
+    <div class="admin-stat-val" style="color:var(--amber)">{{ total_attempts }}</div>
+    <div class="admin-stat-label">Quiz Attempts</div>
+  </div>
+  <div class="admin-stat-card" style="border-top:3px solid var(--red)">
+    <div style="font-size:1.75rem;margin-bottom:.3rem">⚠️</div>
+    <div class="admin-stat-val" style="color:var(--red)">{{ failed_syllabi }}</div>
+    <div class="admin-stat-label">Failed Parses</div>
+    <div class="admin-stat-sub"><a href="{{ url_for('admin.failed_parses') }}">Fix →</a></div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem">
+  <div class="card">
+    <h3 style="margin-bottom:1rem">📈 Daily Signups (7 days)</h3>
+    <canvas id="signupChart" height="180"></canvas>
+  </div>
+  <div class="card">
+    <h3 style="margin-bottom:1rem">🧪 Quiz Attempts (7 days)</h3>
+    <canvas id="attemptsChart" height="180"></canvas>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 340px;gap:1.25rem;margin-bottom:1.5rem">
+  <!-- Recent users -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h3>👥 Recent Students</h3>
+      <a href="{{ url_for('admin.users') }}" class="btn btn-ghost btn-sm">View all →</a>
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:var(--bg2);font-size:.78rem;font-weight:700;color:var(--text2)">
+        <th style="padding:.5rem .75rem;text-align:left">Name</th>
+        <th style="padding:.5rem .75rem;text-align:left">Email</th>
+        <th style="padding:.5rem .75rem;text-align:left">Joined</th>
+        <th style="padding:.5rem .75rem;text-align:left">Status</th>
+      </tr></thead>
+      <tbody>
+        {% for u in recent_users %}
+        <tr style="border-top:1px solid var(--border)">
+          <td style="padding:.55rem .75rem;font-size:.87rem;font-weight:600">
+            <a href="{{ url_for('admin.user_detail', user_id=u.id) }}" style="color:var(--text)">{{ u.name }}</a>
+          </td>
+          <td style="padding:.55rem .75rem;font-size:.82rem;color:var(--text2)">{{ u.email }}</td>
+          <td style="padding:.55rem .75rem;font-size:.78rem;color:var(--text3)">{{ u.created_at.strftime('%b %d') }}</td>
+          <td style="padding:.55rem .75rem">
+            <span class="badge badge-{{ 'green' if u.is_active else 'red' }}">{{ 'Active' if u.is_active else 'Blocked' }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Top performers -->
+  <div class="card">
+    <h3 style="margin-bottom:1rem">🏆 Top Performers</h3>
+    {% for user, avg, total in top_students %}
+    <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border)">
+      <div style="width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;
+           display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;flex-shrink:0">
+        {{ loop.index }}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="bold" style="font-size:.87rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ user.name }}</div>
+        <div class="small text-muted">{{ total }} quizzes</div>
+      </div>
+      <span class="badge badge-green">{{ avg|round(1) }}%</span>
+    </div>
+    {% else %}
+    <p class="small text-muted">No quiz data yet.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Quick actions + Recent logs -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+  <div class="card">
+    <h3 style="margin-bottom:1rem">⚡ Quick Actions</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+      <a href="{{ url_for('admin.quiz_create') }}" class="btn btn-primary">+ Create Quiz</a>
+      <a href="{{ url_for('admin.users') }}" class="btn btn-outline">👥 Students</a>
+      <a href="{{ url_for('admin.chat_monitor') }}" class="btn btn-outline">💬 Chat Monitor</a>
+      <a href="{{ url_for('admin.logs') }}" class="btn btn-outline">📋 Activity Logs</a>
+      <a href="{{ url_for('admin.search') }}" class="btn btn-outline">🔍 Global Search</a>
+      <a href="{{ url_for('admin.syllabi') }}" class="btn btn-outline">📄 Syllabi</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h3>🧾 Recent Activity</h3>
+      <a href="{{ url_for('admin.logs') }}" class="btn btn-ghost btn-sm">All logs →</a>
+    </div>
+    <div style="max-height:200px;overflow-y:auto">
+      {% for log in recent_logs %}
+      <div style="display:flex;gap:.6rem;padding:.45rem 0;border-bottom:1px solid var(--border);align-items:center">
+        <span class="badge badge-purple" style="font-size:.68rem;flex-shrink:0">{{ log.action }}</span>
+        <span class="small" style="color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ log.user.name if log.user else 'System' }}</span>
+        <span class="small" style="color:var(--text3);flex-shrink:0">{{ log.created_at.strftime('%H:%M') }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Broadcast modal -->
+<div id="broadcast-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="width:100%;max-width:480px;margin:1rem">
+    <h2 style="margin-bottom:1rem">📢 Broadcast to All Students</h2>
+    <form method="POST" action="{{ url_for('admin.broadcast') }}">
+      <div class="form-group">
+        <label>Title *</label>
+        <input type="text" name="title" required placeholder="Announcement title">
+      </div>
+      <div class="form-group">
+        <label>Message</label>
+        <textarea name="message" style="min-height:80px" placeholder="Optional message body"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Link (optional)</label>
+        <input type="text" name="link" placeholder="e.g. /quiz">
+      </div>
+      <div style="display:flex;gap:.75rem">
+        <button type="submit" class="btn btn-primary">📤 Send Broadcast</button>
+        <button type="button" onclick="document.getElementById('broadcast-modal').style.display='none'" class="btn btn-ghost">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const font = {family:'Inter',size:11};
+const signupData   = {{ signups_chart|safe }};
+const attemptsData = {{ attempts_chart|safe }};
+new Chart(document.getElementById('signupChart'),{
+  type:'bar',
+  data:{labels:signupData.map(d=>d.date),datasets:[{label:'Signups',data:signupData.map(d=>d.count),backgroundColor:'#818cf8',borderRadius:6}]},
+  options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font}},x:{ticks:{font}}}}
+});
+new Chart(document.getElementById('attemptsChart'),{
+  type:'line',
+  data:{labels:attemptsData.map(d=>d.date),datasets:[{label:'Attempts',data:attemptsData.map(d=>d.count),borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.1)',fill:true,tension:.4,pointRadius:3}]},
+  options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font}},x:{ticks:{font}}}}
+});
+</script>
+{% endblock %}

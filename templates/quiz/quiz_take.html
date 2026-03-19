@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ 'dark' if current_user.dark_mode else 'light' }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ quiz.title }} — Secure Quiz</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+body { user-select:none; overflow-x:hidden }
+#quiz-env-bar{position:sticky;top:0;background:var(--surface);border-bottom:2px solid var(--border);
+  padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;
+  gap:1rem;flex-wrap:wrap;box-shadow:var(--sh-md);z-index:200}
+#viol-toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);
+  background:var(--red);color:#fff;padding:.7rem 1.5rem;border-radius:var(--r);
+  font-weight:700;z-index:9999;display:none;box-shadow:var(--sh-lg);
+  animation:fadeIn .3s;white-space:nowrap}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%)}}
+#auto-submit-overlay{position:fixed;inset:0;background:rgba(220,38,38,.97);
+  z-index:99999;display:none;align-items:center;justify-content:center;
+  flex-direction:column;gap:1rem;color:#fff;text-align:center;padding:2rem}
+.timer-large{font-size:2rem;font-weight:800;font-variant-numeric:tabular-nums;font-family:'Outfit',sans-serif}
+.timer-large.warn{color:var(--red);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.q-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.75rem;margin-bottom:1.25rem;scroll-margin-top:100px}
+.opt-label{display:flex;align-items:flex-start;gap:.85rem;padding:.8rem 1rem;
+  border:2px solid var(--border);border-radius:var(--r-sm);cursor:pointer;
+  transition:all .15s;margin-bottom:.55rem;user-select:none}
+.opt-label:hover{border-color:var(--primary);background:var(--primary-ll)}
+.opt-label.selected{border-color:var(--primary);background:var(--primary-l)}
+.opt-key{width:26px;height:26px;border-radius:6px;background:var(--bg2);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0}
+.opt-label.selected .opt-key{background:var(--primary);color:#fff}
+.q-dot{width:30px;height:30px;border-radius:6px;border:2px solid var(--border);
+  background:var(--surface);display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;font-weight:700;cursor:pointer;transition:all .1s}
+.q-dot.answered{background:var(--primary);color:#fff;border-color:var(--primary)}
+.q-dot.active{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-l)}
+</style>
+</head>
+<body>
+
+<!-- Anti-submit overlay -->
+<div id="auto-submit-overlay">
+  <div style="font-size:4rem">🚨</div>
+  <h1 style="color:#fff;font-size:2rem">Quiz Auto-Submitted!</h1>
+  <p style="opacity:.88;font-size:1.1rem">Maximum violations reached. Your answers have been recorded.</p>
+  <div id="overlay-countdown" style="font-size:1.5rem;font-weight:700">Redirecting in 3s…</div>
+</div>
+
+<!-- Violation toast -->
+<div id="viol-toast">⚠️ Violation detected! <span id="viol-msg-text"></span></div>
+
+<!-- Secure quiz bar -->
+<div id="quiz-env-bar">
+  <div>
+    <div class="bold" style="font-size:.95rem">{{ quiz.title }}</div>
+    <div class="small text-muted">{{ quiz.subject.name if quiz.subject else '' }} · {{ questions|length }} questions · Secure Exam{% if quiz.fullscreen_req %} · Fullscreen{% endif %}{% if quiz.webcam_req %} · Webcam{% endif %}</div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
+    <!-- Progress -->
+    <div style="display:flex;align-items:center;gap:.6rem">
+      <div style="height:6px;width:120px;background:var(--bg2);border-radius:3px;overflow:hidden">
+        <div id="prog-bar" style="height:100%;background:var(--primary);width:0%;transition:width .3s;border-radius:3px"></div>
+      </div>
+      <span class="small text-muted" id="prog-txt">0/{{ questions|length }}</span>
+    </div>
+
+    <!-- Violations -->
+    <div style="display:flex;align-items:center;gap:.5rem;font-size:.82rem">
+      <span style="color:var(--text2)">Violations:</span>
+      <div style="display:flex;gap:3px" id="viol-dots">
+        {% set max_v = quiz.max_violations if quiz.max_violations else 3 %}
+        {% for i in range(max_v) %}
+        <div class="viol-dot" id="vdot-{{ i }}" style="width:10px;height:10px;border-radius:50%;background:var(--border)"></div>
+        {% endfor %}
+      </div>
+      <span id="viol-count-txt" style="color:var(--red);font-weight:700">0/{{ quiz.max_violations if quiz.max_violations else 3 }}</span>
+    </div>
+
+    <!-- Timer -->
+    <div class="timer-large" id="quiz-timer">{{ '%02d:%02d'|format(quiz.duration_minutes or 30, 0) }}</div>
+  </div>
+</div>
+
+<div class="page-container" style="padding-top:1.5rem">
+
+  {% if quiz.webcam_req %}
+  <div style="margin-bottom:1rem;display:flex;align-items:center;gap:.75rem">
+    <video id="proctor-cam" autoplay muted playsinline
+           style="width:140px;height:90px;border-radius:var(--r-sm);border:2px solid var(--border);background:#000;object-fit:cover"></video>
+    <div class="small text-muted">
+      📷 Webcam proctoring is enabled for this quiz. Please keep your camera on.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Violation warning bar -->
+  <div id="viol-bar" style="display:none;background:var(--red-bg);border:1px solid var(--red-b);
+       border-radius:var(--r-sm);padding:.65rem 1rem;font-size:.85rem;font-weight:600;
+       color:var(--red);margin-bottom:1rem">
+    ⚠️ <span id="viol-detail"></span> — <span id="viol-remain"></span> warning(s) remaining.
+  </div>
+
+  <!-- Question dots navigation -->
+  <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.25rem" id="q-dots">
+    {% for q in questions %}
+    <div class="q-dot {% if loop.first %}active{% endif %}" id="dot-{{ loop.index0 }}"
+         onclick="scrollToQ({{ loop.index0 }})">{{ loop.index }}</div>
+    {% endfor %}
+  </div>
+
+  <!-- Questions -->
+  <form id="quiz-form">
+    {% for q in questions %}
+    <div class="q-card" id="qcard-{{ loop.index0 }}">
+      <div style="display:flex;gap:.5rem;align-items:flex-start;margin-bottom:.85rem">
+        <span class="badge badge-purple" style="flex-shrink:0;font-size:.7rem">Q{{ loop.index }}</span>
+        {% if q.difficulty %}
+        <span class="badge badge-{{ 'green' if q.difficulty=='easy' else ('amber' if q.difficulty=='medium' else 'red') }}" style="flex-shrink:0;font-size:.7rem">{{ q.difficulty }}</span>
+        {% endif %}
+        {% if q.topic_tag %}<span class="small text-muted">{{ q.topic_tag }}</span>{% endif %}
+      </div>
+      <div style="font-size:1rem;font-weight:500;margin-bottom:1.1rem;line-height:1.6">{{ q.question_text }}</div>
+      {% for key, text in [('A',q.option_a),('B',q.option_b),('C',q.option_c),('D',q.option_d)] %}
+      <label class="opt-label" id="opt-{{ loop.index0 }}-{{ key }}"
+             onclick="selectAnswer(this,'{{ q.id }}','{{ key }}',{{ loop.index0 }})">
+        <input type="radio" name="q_{{ q.id }}" value="{{ key }}" style="display:none">
+        <div class="opt-key">{{ key }}</div>
+        <div style="font-size:.9rem;line-height:1.5">{{ text }}</div>
+      </label>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:1.5rem;flex-wrap:wrap">
+      <div class="small text-muted" id="unanswered-note"></div>
+      <button type="button" onclick="triggerSubmit(false)" class="btn btn-primary btn-lg" id="submit-btn">
+        ✅ Submit Quiz
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const QUIZ_ID    = {{ quiz.id }};
+const ATTEMPT_ID = {{ attempt.id }};
+const TOTAL_Q    = {{ questions|length }};
+const MAX_VIOL   = {{ quiz.max_violations if quiz.max_violations else 3 }};
+const DURATION_S = {{ (quiz.duration_minutes or 30) * 60 }};
+const answered   = new Set();
+let violations   = 0;
+let totalSecs    = DURATION_S;
+let timerHandle;
+let answers      = {};
+let submitting   = false;
+
+// ── Fullscreen enforcement ───────────────────────────────────────────────────
+{% if quiz.fullscreen_req %}
+function requestFS() {
+  const el = document.documentElement;
+  (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || (()=>{})).call(el);
+}
+requestFS();
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && !submitting) logViolation('fullscreen_exit', 'Exited fullscreen mode');
+});
+{% endif %}
+
+// ── Webcam proctoring ───────────────────────────────────────────────────────
+{% if quiz.webcam_req %}
+let camStream = null;
+
+async function startWebcam() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    logViolation('webcam_unsupported', 'Webcam not supported in this browser');
+    return;
+  }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    const vid = document.getElementById('proctor-cam');
+    if (vid) {
+      vid.srcObject = camStream;
+    }
+    const tracks = camStream.getVideoTracks();
+    if (tracks && tracks[0]) {
+      tracks[0].addEventListener('ended', () => {
+        if (!submitting) logViolation('webcam_ended', 'Webcam stream stopped');
+      });
+    }
+  } catch (err) {
+    logViolation('webcam_denied', 'Webcam access denied or unavailable');
+  }
+}
+
+startWebcam();
+
+window.addEventListener('beforeunload', () => {
+  if (camStream) {
+    camStream.getTracks().forEach(t => t.stop());
+  }
+});
+{% endif %}
+
+// ── Block right-click, copy, paste ──────────────────────────────────────────
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('copy',  e => e.preventDefault());
+document.addEventListener('paste', e => e.preventDefault());
+document.addEventListener('cut',   e => e.preventDefault());
+
+// ── Tab visibility detection ─────────────────────────────────────────────────
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && !submitting) logViolation('tab_switch', 'Switched to another tab or minimized');
+});
+window.addEventListener('blur', () => {
+  if (!submitting) logViolation('window_blur', 'Window lost focus');
+});
+
+// ── Timer ────────────────────────────────────────────────────────────────────
+function tickTimer() {
+  if (totalSecs <= 0) { triggerSubmit(true, 'time_up'); return; }
+  totalSecs--;
+  const m = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+  const s = String(totalSecs % 60).padStart(2, '0');
+  const el = document.getElementById('quiz-timer');
+  el.textContent = `${m}:${s}`;
+  if (totalSecs <= 120) el.classList.add('warn');
+}
+timerHandle = setInterval(tickTimer, 1000);
+
+// ── Answer selection ─────────────────────────────────────────────────────────
+function selectAnswer(label, qId, key, qIdx) {
+  document.querySelectorAll(`[name="q_${qId}"]`).forEach(r => r.closest('.opt-label').classList.remove('selected'));
+  label.classList.add('selected');
+  label.querySelector('input').checked = true;
+  answers[qId] = key;
+  answered.add(qIdx);
+  document.getElementById('dot-' + qIdx).classList.add('answered');
+  const pct = (answered.size / TOTAL_Q * 100).toFixed(0);
+  document.getElementById('prog-bar').style.width = pct + '%';
+  document.getElementById('prog-txt').textContent  = answered.size + '/' + TOTAL_Q;
+  // Auto-save for resume support
+  fetch(`/quiz/${QUIZ_ID}/save-answer`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({question_id: qId, answer: key})
+  }).catch(() => {});
+}
+
+function scrollToQ(idx) {
+  document.querySelectorAll('.q-dot').forEach(d => d.classList.remove('active'));
+  document.getElementById('dot-' + idx).classList.add('active');
+  document.getElementById('qcard-' + idx).scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+// ── Violation system ─────────────────────────────────────────────────────────
+function logViolation(type, detail) {
+  if (submitting) return;
+  fetch(`/quiz/${QUIZ_ID}/violation`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({type, detail})
+  }).then(r => r.json()).then(d => {
+    violations = d.violations;
+    // Update dots
+    for (let i = 0; i < MAX_VIOL; i++) {
+      const dot = document.getElementById('vdot-' + i);
+      if (dot) dot.style.background = i < violations ? 'var(--red)' : 'var(--border)';
+    }
+    document.getElementById('viol-count-txt').textContent = `${violations}/${MAX_VIOL}`;
+
+    if (d.auto_submit) {
+      triggerSubmit(true, 'max_violations');
+      return;
+    }
+    // Show toast
+    const toast = document.getElementById('viol-toast');
+    document.getElementById('viol-msg-text').textContent = detail;
+    toast.style.display = 'block';
+    setTimeout(() => toast.style.display = 'none', 4000);
+    // Show warning bar
+    const bar = document.getElementById('viol-bar');
+    document.getElementById('viol-detail').textContent  = detail;
+    document.getElementById('viol-remain').textContent  = MAX_VIOL - violations;
+    bar.style.display = 'block';
+  }).catch(() => {});
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+function triggerSubmit(auto = false, reason = '') {
+  if (submitting) return;
+  submitting = true;
+  clearInterval(timerHandle);
+
+  if (auto) {
+    // Show overlay
+    const overlay = document.getElementById('auto-submit-overlay');
+    overlay.style.display = 'flex';
+    let c = 3;
+    const cd = document.getElementById('overlay-countdown');
+    const ivl = setInterval(() => { c--; cd.textContent = `Redirecting in ${c}s…`; if (c<=0) { clearInterval(ivl); doSubmit(true); }}, 1000);
+  } else {
+    const missing = TOTAL_Q - answered.size;
+    if (missing > 0 && !confirm(`${missing} question(s) unanswered. Submit anyway?`)) {
+      submitting = false; clearInterval(timerHandle); timerHandle = setInterval(tickTimer, 1000);
+      return;
+    }
+    doSubmit(false);
+  }
+}
+
+function doSubmit(auto) {
+  const btn = document.getElementById('submit-btn');
+  if (btn) { btn.textContent = '⏳ Submitting…'; btn.disabled = true; }
+  fetch(`/quiz/submit/${QUIZ_ID}`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({answers, auto_submit: auto})
+  }).then(r => r.json()).then(d => {
+    if (d.redirect) window.location = d.redirect;
+  }).catch(() => window.location = `/quiz/${QUIZ_ID}/result`);
+}
+
+document.getElementById('submit-btn').addEventListener('click', () => triggerSubmit(false));
+</script>
+</body>
+</html>

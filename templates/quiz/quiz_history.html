@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Quiz History{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+    <div>
+      <h1>📜 Quiz History</h1>
+      <p class="text-muted">{{ attempts|length }} total attempts</p>
+    </div>
+    <a href="{{ url_for('quiz.quiz_start') }}" class="btn btn-primary">+ New Quiz</a>
+  </div>
+  {% if attempts %}
+  <div class="card" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="background:var(--bg2);font-size:.82rem;font-weight:600;color:var(--text2);text-align:left">
+          <th style="padding:.75rem 1rem">Topic</th>
+          <th style="padding:.75rem 1rem">Score</th>
+          <th style="padding:.75rem 1rem">Difficulty</th>
+          <th style="padding:.75rem 1rem">Time</th>
+          <th style="padding:.75rem 1rem">Date</th>
+          <th style="padding:.75rem 1rem"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in attempts %}
+        {% set color = 'green' if a.accuracy_pct>=80 else ('amber' if a.accuracy_pct>=50 else 'red') %}
+        <tr style="border-top:1px solid var(--border);font-size:.88rem">
+          <td style="padding:.75rem 1rem;font-weight:600">{{ a.quiz.topic }}</td>
+          <td style="padding:.75rem 1rem">
+            <span class="badge badge-{{ color }}">{{ a.accuracy_pct|int }}% ({{ a.score }}/{{ a.total_questions }})</span>
+          </td>
+          <td style="padding:.75rem 1rem">
+            <span class="badge badge-{{ 'green' if a.difficulty_used=='easy' else ('amber' if a.difficulty_used=='medium' else 'red') }}">
+              {{ a.difficulty_used }}
+            </span>
+          </td>
+          <td style="padding:.75rem 1rem;color:var(--text2)">{{ (a.time_taken_sec//60) }}m {{ a.time_taken_sec%60 }}s</td>
+          <td style="padding:.75rem 1rem;color:var(--text2)">{{ a.completed_at.strftime('%b %d, %Y') }}</td>
+          <td style="padding:.75rem 1rem">
+            <a href="{{ url_for('quiz.quiz_result', attempt_id=a.id) }}" class="btn btn-ghost btn-sm">Review</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon">🧪</span>
+    <p>No quiz attempts yet. <a href="{{ url_for('quiz.quiz_start') }}">Take your first quiz!</a></p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

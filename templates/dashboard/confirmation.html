@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Confirm Study Plan{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block content %}
+
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">
+        <a href="{{ url_for('subjects.index') }}">Subjects</a> / {{ subject.name }} / Confirm Plan
+      </div>
+      <h1>Review What AI Found 🔍</h1>
+      <p class="text-muted">Check every extracted date before confirming. You can edit, add, or remove anything.</p>
+    </div>
+  </div>
+
+  <!-- Summary Banner -->
+  <div class="confirm-summary">
+    <div class="summary-stat">
+      <span class="stat-num" id="count-assign">{{ assignments|length }}</span>
+      <span class="stat-label">Assignments</span>
+    </div>
+    <div class="summary-stat">
+      <span class="stat-num" id="count-exams">{{ exams|length }}</span>
+      <span class="stat-label">Exams / Quizzes</span>
+    </div>
+    <div class="summary-stat">
+      <span class="stat-num">{{ weekly_plan|length }}</span>
+      <span class="stat-label">Weeks planned</span>
+    </div>
+    {% if syllabus.ocr_used %}
+    <div class="confirm-warning">
+      ⚠️ OCR was used — please verify all dates carefully. Low-confidence items are highlighted.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Course Info -->
+  {% if course_info and course_info.get('course_title') %}
+  <div class="confirm-section" style="margin-top:1rem">
+    <h2 style="margin-bottom:.75rem">📚 Course detected</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;font-size:.88rem">
+      <div><strong>Title:</strong><br><span class="text-muted">{{ course_info.get('course_title','—') }}</span></div>
+      <div><strong>Instructor:</strong><br><span class="text-muted">{{ course_info.get('instructor','Not detected') }}</span></div>
+      <div><strong>Grading:</strong><br><span class="text-muted">{{ course_info.get('grading_policy','Not detected') }}</span></div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="confirm-layout" style="margin-top:1rem">
+
+    <!-- Assignments -->
+    <div class="confirm-section">
+      <div class="confirm-section-header">
+        <h2>📋 Assignments & Tasks</h2>
+        <button class="btn btn-ghost btn-sm" onclick="addAssignment()">+ Add Missing</button>
+      </div>
+      <div id="assignments-list">
+        {% if assignments %}
+          {% for a in assignments %}
+          <div class="confirm-item">
+            <div class="confirm-item-row">
+              <input class="confirm-title" type="text"
+                     value="{{ a.title }}" placeholder="Assignment title">
+              <input class="confirm-date" type="date"
+                     value="{{ a.due_date or '' }}" title="Due date">
+              <span class="confidence-badge confidence-{{ a.get('confidence','high') }}">
+                {{ a.get('confidence','high') }}
+              </span>
+              <button class="remove-btn" onclick="removeItem(this)" title="Remove">×</button>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted" style="font-size:.85rem;padding:.5rem 0">
+            No assignments were detected in the syllabus. Add them manually if needed.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Exams -->
+    <div class="confirm-section">
+      <div class="confirm-section-header">
+        <h2>📝 Exams & Quizzes</h2>
+        <button class="btn btn-ghost btn-sm" onclick="addExam()">+ Add Missing</button>
+      </div>
+      <div id="exams-list">
+        {% if exams %}
+          {% for e in exams %}
+          <div class="confirm-item">
+            <div class="confirm-item-row">
+              <input class="confirm-title" type="text"
+                     value="{{ e.name }}" placeholder="Exam name">
+              <input class="confirm-date" type="date"
+                     value="{{ e.exam_date or '' }}" title="Exam date">
+              <span class="confirm-type-label">{{ e.get('type','exam') }}</span>
+              <span class="confidence-badge confidence-{{ e.get('confidence','high') }}">
+                {{ e.get('confidence','high') }}
+              </span>
+              <button class="remove-btn" onclick="removeItem(this)" title="Remove">×</button>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted" style="font-size:.85rem;padding:.5rem 0">
+            No exams were detected. Add them manually if needed.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Weekly Preview -->
+    <div class="confirm-section">
+      <h2>📅 Weekly plan preview (first 5 of {{ weekly_plan|length }} weeks)</h2>
+      <div class="weeks-preview">
+        {% for w in weekly_plan[:5] %}
+        <div class="week-preview-item">
+          <span class="week-preview-num">Wk {{ w.week_number }}</span>
+          <span class="week-preview-topics">
+            {% if w.topics %}{{ w.topics[:3]|join(', ') }}{% else %}No topics detected{% endif %}
+          </span>
+          <span class="difficulty-chip difficulty-{{ w.difficulty }}">{{ w.difficulty }}</span>
+          <span style="font-size:.75rem;color:var(--text3)">{{ w.study_hours }}h</span>
+        </div>
+        {% endfor %}
+        {% if weekly_plan|length > 5 %}
+        <p class="text-muted" style="font-size:.82rem;padding:.35rem 0">
+          … and {{ weekly_plan|length - 5 }} more weeks
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Important warning -->
+    <div style="background:var(--amber-bg);border:1px solid var(--amber-b);border-radius:var(--r-sm);padding:1rem 1.25rem;font-size:.85rem">
+      <strong>⚠️ Important before confirming:</strong>
+      <ul style="margin-top:.4rem;padding-left:1.25rem;list-style:disc;color:var(--text2)">
+        <li>Check all dates — wrong dates affect your plan and reminders.</li>
+        <li>Items marked <strong style="color:var(--red)">low confidence</strong> were inferred by AI — verify them carefully.</li>
+        <li>You can always edit individual week details after the plan is created.</li>
+      </ul>
+    </div>
+
+    <!-- Confirm Actions -->
+    <div class="confirm-actions">
+      <a href="{{ url_for('upload.upload_page', subject_id=subject.id) }}" class="btn btn-ghost">
+        ← Re-upload Different PDF
+      </a>
+      <button class="btn btn-primary btn-lg" onclick="confirmPlan()" id="confirm-btn">
+        ✅ Looks Good — Generate My Plan
+      </button>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const rawData = {{ raw_json | safe }};
+
+function removeItem(btn) {
+  btn.closest('.confirm-item').remove();
+  updateCounts();
+}
+
+function updateCounts() {
+  document.getElementById('count-assign').textContent =
+    document.querySelectorAll('#assignments-list .confirm-item').length;
+  document.getElementById('count-exams').textContent =
+    document.querySelectorAll('#exams-list .confirm-item').length;
+}
+
+function addAssignment() {
+  const list = document.getElementById('assignments-list');
+  const p = list.querySelector('p');
+  if (p) p.remove();
+  const div = document.createElement('div');
+  div.className = 'confirm-item';
+  div.innerHTML = `<div class="confirm-item-row">
+    <input class="confirm-title" type="text" placeholder="Assignment title">
+    <input class="confirm-date" type="date" title="Due date">
+    <span class="confidence-badge confidence-manual">manual</span>
+    <button class="remove-btn" onclick="removeItem(this)" title="Remove">×</button>
+  </div>`;
+  list.appendChild(div);
+  div.querySelector('input').focus();
+  updateCounts();
+}
+
+function addExam() {
+  const list = document.getElementById('exams-list');
+  const p = list.querySelector('p');
+  if (p) p.remove();
+  const div = document.createElement('div');
+  div.className = 'confirm-item';
+  div.innerHTML = `<div class="confirm-item-row">
+    <input class="confirm-title" type="text" placeholder="Exam / quiz name">
+    <input class="confirm-date" type="date" title="Exam date">
+    <span class="confirm-type-label">exam</span>
+    <span class="confidence-badge confidence-manual">manual</span>
+    <button class="remove-btn" onclick="removeItem(this)" title="Remove">×</button>
+  </div>`;
+  list.appendChild(div);
+  div.querySelector('input').focus();
+  updateCounts();
+}
+
+async function confirmPlan() {
+  const confirmed = JSON.parse(JSON.stringify(rawData));
+
+  confirmed.assignments = [];
+  document.querySelectorAll('#assignments-list .confirm-item').forEach(item => {
+    const title = item.querySelector('.confirm-title').value.trim();
+    const date  = item.querySelector('.confirm-date').value;
+    if (title) confirmed.assignments.push({ title, due_date: date || null, confidence: 'high', estimated_hours: 2 });
+  });
+
+  confirmed.exams = [];
+  document.querySelectorAll('#exams-list .confirm-item').forEach(item => {
+    const name = item.querySelector('.confirm-title').value.trim();
+    const date = item.querySelector('.confirm-date').value;
+    if (name) confirmed.exams.push({ name, exam_date: date || null, confidence: 'high', type: 'exam' });
+  });
+
+  const btn = document.getElementById('confirm-btn');
+  btn.textContent = '⏳ Creating your plan...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/upload/confirm/{{ syllabus.id }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(confirmed)
+    });
+    const data = await res.json();
+    if (data.success) {
+      window.location.href = data.redirect;
+    } else {
+      btn.textContent = '✅ Looks Good — Generate My Plan';
+      btn.disabled = false;
+      alert('Error creating plan. Please try again.');
+    }
+  } catch (e) {
+    btn.textContent = '✅ Looks Good — Generate My Plan';
+    btn.disabled = false;
+    alert('Connection error. Please try again.');
+  }
+}
+</script>
+{% endblock %}

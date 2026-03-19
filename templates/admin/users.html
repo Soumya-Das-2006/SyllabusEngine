@@ -1,0 +1,120 @@
+{% extends "admin/base.html" %}
+{% block title %}Students{% endblock %}
+{% block content_inner %}
+<div class="page-header">
+  <div>
+    <h1>👥 Students</h1>
+    <p class="text-muted">{{ users|length }} student{{ 's' if users|length!=1 }}</p>
+  </div>
+  <a href="{{ url_for('admin.export_users') }}" class="btn btn-outline btn-sm">📊 Export CSV</a>
+</div>
+
+<!-- Search & Filter -->
+<form method="GET" style="display:flex;gap:.6rem;margin-bottom:1.25rem;flex-wrap:wrap">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search name, email, college…"
+         style="flex:1;min-width:200px;border:1.5px solid var(--border);border-radius:var(--r-sm);
+         padding:.5rem .85rem;font-family:'Inter',sans-serif;font-size:.88rem;background:var(--surface);color:var(--text)">
+  <select name="status" style="border:1.5px solid var(--border);border-radius:var(--r-sm);
+         padding:.5rem .85rem;font-family:'Inter',sans-serif;font-size:.88rem;background:var(--surface);color:var(--text)">
+    <option value="all" {% if status=='all' %}selected{% endif %}>All Students</option>
+    <option value="active" {% if status=='active' %}selected{% endif %}>Active Only</option>
+    <option value="blocked" {% if status=='blocked' %}selected{% endif %}>Blocked Only</option>
+  </select>
+  <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+  <a href="{{ url_for('admin.users') }}" class="btn btn-ghost btn-sm">Clear</a>
+</form>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <table style="width:100%;border-collapse:collapse">
+    <thead>
+      <tr style="background:var(--bg2);font-size:.75rem;font-weight:700;color:var(--text2);text-align:left">
+        <th style="padding:.65rem 1rem">Student</th>
+        <th style="padding:.65rem 1rem">College / Course</th>
+        <th style="padding:.65rem 1rem">Profile</th>
+        <th style="padding:.65rem 1rem">Quizzes</th>
+        <th style="padding:.65rem 1rem">Attendance</th>
+        <th style="padding:.65rem 1rem">Joined</th>
+        <th style="padding:.65rem 1rem">Status</th>
+        <th style="padding:.65rem 1rem">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      {% set quiz_count = u.quiz_attempts|length %}
+      {% set att_count = u.attendance_records|length %}
+      <tr style="border-top:1px solid var(--border)" id="row-{{ u.id }}">
+        <td style="padding:.65rem 1rem">
+          <div style="display:flex;align-items:center;gap:.6rem">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;
+                 display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;flex-shrink:0">
+              {{ u.name[0].upper() }}
+            </div>
+            <div>
+              <div class="bold" style="font-size:.88rem">{{ u.name }}</div>
+              <div class="small text-muted">{{ u.email }}</div>
+            </div>
+          </div>
+        </td>
+        <td style="padding:.65rem 1rem;font-size:.85rem">
+          <div>{{ u.college or '—' }}</div>
+          <div class="small text-muted">{{ u.course or '' }}{% if u.year %} · {{ u.year }}{% endif %}</div>
+        </td>
+        <td style="padding:.65rem 1rem">
+          <div style="display:flex;align-items:center;gap:.4rem">
+            <div style="width:50px;height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:{{ u.profile_pct }}%;background:{{ 'var(--green)' if u.profile_pct==100 else ('var(--amber)' if u.profile_pct>=60 else 'var(--red)') }};border-radius:3px"></div>
+            </div>
+            <span class="small text-muted">{{ u.profile_pct }}%</span>
+          </div>
+        </td>
+        <td style="padding:.65rem 1rem;font-size:.88rem;font-weight:600">{{ quiz_count }}</td>
+        <td style="padding:.65rem 1rem">
+          <a href="{{ url_for('attendance.student_attendance', user_id=u.id) }}" class="small text-muted" style="text-decoration:none">
+            {{ att_count }} records
+          </a>
+        </td>
+        <td style="padding:.65rem 1rem;font-size:.78rem;color:var(--text3)">{{ u.created_at.strftime('%b %d, %Y') }}</td>
+        <td style="padding:.65rem 1rem">
+          <span class="badge badge-{{ 'green' if u.is_active else 'red' }}" id="badge-{{ u.id }}">
+            {{ 'Active' if u.is_active else 'Blocked' }}
+          </span>
+        </td>
+        <td style="padding:.65rem 1rem">
+          <div style="display:flex;gap:.3rem">
+            <a href="{{ url_for('admin.user_detail', user_id=u.id) }}" class="btn btn-ghost btn-sm">View</a>
+            {% if u.id != current_user.id %}
+            <button onclick="toggleUser({{ u.id }}, this)"
+                    class="btn btn-sm {{ 'btn-success' if not u.is_active else 'btn-danger' }}"
+                    id="toggle-{{ u.id }}">
+              {{ 'Activate' if not u.is_active else 'Block' }}
+            </button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center;padding:2.5rem;color:var(--text3)">
+        No students found{% if q %} for "{{ q }}"{% endif %}.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleUser(uid, btn) {
+  if (!confirm('Toggle user active status?')) return;
+  fetch(`/admin/users/${uid}/toggle`, {method:'POST'})
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok) return;
+      const badge  = document.getElementById('badge-'+uid);
+      badge.textContent = d.active ? 'Active' : 'Blocked';
+      badge.className   = `badge badge-${d.active ? 'green' : 'red'}`;
+      btn.textContent   = d.active ? 'Block' : 'Activate';
+      btn.className     = `btn btn-sm ${d.active ? 'btn-danger' : 'btn-success'}`;
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "admin/base.html" %}
+{% block title %}Global Search{% endblock %}
+{% block content_inner %}
+<div class="page-header">
+  <div><h1>🔍 Global Search</h1></div>
+</div>
+<form method="GET" style="display:flex;gap:.6rem;margin-bottom:1.75rem">
+  <input type="text" name="q" value="{{ q }}" autofocus placeholder="Search students, quizzes, notes, messages…"
+         style="flex:1;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:.6rem 1rem;
+         font-family:'Inter',sans-serif;font-size:.95rem;background:var(--surface);color:var(--text)">
+  <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+{% if q %}
+  {% if users %}
+  <div style="margin-bottom:1.5rem">
+    <h3 style="margin-bottom:.75rem">👥 Students ({{ users|length }})</h3>
+    <div class="card" style="padding:0;overflow:hidden">
+      {% for u in users %}
+      <div style="display:flex;align-items:center;gap.75rem;padding:.75rem 1rem;border-bottom:1px solid var(--border)">
+        <div style="width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">{{ u.name[0].upper() }}</div>
+        <div style="flex:1;margin-left:.75rem">
+          <div class="bold text-sm">{{ u.name }}</div>
+          <div class="small text-muted">{{ u.email }} · {{ u.college or '—' }}</div>
+        </div>
+        <a href="{{ url_for('admin.user_detail', user_id=u.id) }}" class="btn btn-ghost btn-sm">View →</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if quizzes %}
+  <div style="margin-bottom:1.5rem">
+    <h3 style="margin-bottom:.75rem">🧪 Quizzes ({{ quizzes|length }})</h3>
+    <div class="card" style="padding:0;overflow:hidden">
+      {% for q_ in quizzes %}
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-bottom:1px solid var(--border)">
+        <span style="font-size:1.4rem">🧪</span>
+        <div style="flex:1">
+          <div class="bold text-sm">{{ q_.title }}</div>
+          <div class="small text-muted">{{ q_.subject.name if q_.subject else '—' }} · {{ q_.attempts|length }} attempts</div>
+        </div>
+        <span class="badge badge-{{ 'green' if q_.is_active else 'red' }}">{{ 'Active' if q_.is_active else 'Inactive' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if notes %}
+  <div style="margin-bottom:1.5rem">
+    <h3 style="margin-bottom:.75rem">📝 Notes ({{ notes|length }})</h3>
+    <div class="card" style="padding:0;overflow:hidden">
+      {% for n in notes %}
+      <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border)">
+        <div class="bold text-sm">{{ n.title }}</div>
+        <div class="small text-muted">{{ n.content[:100]|striptags }}…</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if messages %}
+  <div style="margin-bottom:1.5rem">
+    <h3 style="margin-bottom:.75rem">💬 Chat Messages ({{ messages|length }})</h3>
+    <div class="card" style="padding:0;overflow:hidden">
+      {% for m in messages %}
+      <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border)">
+        <div class="bold text-sm">{{ m.user.name }} <span class="small text-muted">in {{ m.room.name }}</span></div>
+        <div class="small text-muted">{{ m.message[:120] }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not users and not quizzes and not notes and not messages %}
+  <div style="text-align:center;padding:3rem;color:var(--text3)">
+    <div style="font-size:3rem;margin-bottom:1rem">🔍</div>
+    <p>No results found for "<strong>{{ q }}</strong>"</p>
+  </div>
+  {% endif %}
+{% else %}
+<div style="text-align:center;padding:3rem;color:var(--text2)">
+  <div style="font-size:3rem;margin-bottom:1rem">🔍</div>
+  <p>Enter a search term above to find students, quizzes, notes, and messages.</p>
+</div>
+{% endif %}
+{% endblock %}

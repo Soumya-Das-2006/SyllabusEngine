@@ -1,0 +1,123 @@
+{% extends "admin/base.html" %}
+{% block title %}Failed Parses — Admin{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block content_inner %}
+
+<div class="page-container">
+
+  <!-- ── PAGE HEADER ── -->
+  <div class="page-header">
+    <div>
+      <div class="admin-badge">⚙️ Admin Panel</div>
+      <h1>Failed Parse Queue</h1>
+      <p class="text-muted">
+        {% if failed %}
+          {{ failed|length }} syllabus file{{ 's' if failed|length != 1 }} failed to process.
+          You can reprocess them individually.
+        {% else %}
+          No failed parses — all syllabi processed successfully.
+        {% endif %}
+      </p>
+    </div>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-ghost">← Dashboard</a>
+  </div>
+
+  {% if failed %}
+
+  <!-- ── FAILED FILES TABLE ── -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Original File</th>
+            <th>Subject</th>
+            <th>User</th>
+            <th>Uploaded</th>
+            <th>OCR Used</th>
+            <th>Error Message</th>
+            <th style="text-align:right">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in failed %}
+          <tr>
+            <td style="color:var(--text3)">{{ s.id }}</td>
+            <td>
+              <div style="font-weight:500;font-size:.85rem;max-width:200px;
+                          white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                {{ s.original_filename or 'Unknown file' }}
+              </div>
+            </td>
+            <td>
+              {% if s.subject %}
+                <span style="font-weight:500">{{ s.subject.name }}</span>
+              {% else %}
+                <span class="text-muted">N/A</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.subject and s.subject.user %}
+                {{ s.subject.user.email }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>{{ s.uploaded_at.strftime('%b %d, %H:%M') }}</td>
+            <td>
+              {% if s.ocr_used %}
+                <span class="badge badge-amber">OCR</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="error-cell" title="{{ s.error_message or 'Unknown error' }}">
+              {{ (s.error_message or 'Unknown error')[:80] }}{% if s.error_message and s.error_message|length > 80 %}…{% endif %}
+            </td>
+            <td style="text-align:right">
+              <form method="POST"
+                    action="{{ url_for('admin.reprocess', syllabus_id=s.id) }}"
+                    style="display:inline">
+                <button type="submit" class="btn btn-primary btn-sm">
+                  🔄 Reprocess
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── HELP SECTION ── -->
+  <div style="background:var(--blue-bg);border:1px solid var(--blue-b);border-radius:var(--r-sm);
+              padding:1rem 1.25rem;margin-top:1.25rem;font-size:.85rem;color:var(--text2)">
+    <strong style="color:var(--blue)">💡 Common reasons for failure:</strong>
+    <ul style="margin-top:.5rem;padding-left:1.25rem;list-style:disc">
+      <li>PDF is password-protected or encrypted</li>
+      <li>PDF is a scanned image with no readable text layer (OCR may help on retry)</li>
+      <li>PDF is corrupted or too large</li>
+      <li>Groq API key is missing or rate-limited — check your <code>GROQ_API_KEY</code> environment variable</li>
+      <li>AI returned malformed JSON — retry usually fixes this</li>
+    </ul>
+  </div>
+
+  {% else %}
+
+  <!-- ── EMPTY STATE ── -->
+  <div class="empty-state">
+    <span class="empty-icon">✅</span>
+    <h2>No failed parses</h2>
+    <p>All syllabi processed successfully. This queue is empty.</p>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-outline" style="margin-top:.5rem">
+      ← Back to Dashboard
+    </a>
+  </div>
+
+  {% endif %}
+
+</div>
+
+{% endblock %}

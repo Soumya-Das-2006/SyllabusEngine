@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Testimonials{% endblock %}
+{% block body_class %}page-public{% endblock %}
+{% block content %}
+<div class="page-container">
+  <header class="page-header">
+    <div>
+      <h1>Student testimonials</h1>
+      <p class="text-muted">Real stories from learners using the Syllabus-to-Success Engine.</p>
+    </div>
+  </header>
+
+<div class="lp-testimonial-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% if testimonials %}
+      {% for t in testimonials %}
+      <article class="lp-testimonial-card glass-card hover:neon-glow">
+        <div class="lp-testimonial-header">
+          <div class="lp-testimonial-avatar">
+            {% if t.photo_url %}
+            <img src="{{ url_for('static', filename=t.photo_url) }}" alt="{{ t.name }}">
+            {% else %}
+            <span>{{ t.name[0]|upper }}</span>
+            {% endif %}
+          </div>
+          <div>
+            <h3 class="lp-testimonial-name">{{ t.name }}</h3>
+            <p class="lp-testimonial-meta">Student</p>
+          </div>
+        </div>
+        <p class="lp-testimonial-text">{{ t.feedback }}</p>
+        <p class="lp-testimonial-date">{{ t.created_at.strftime('%b %d, %Y') }}</p>
+      </article>
+      {% endfor %}
+    {% else %}
+      <p class="text-muted">No testimonials yet. Be the first to share your journey.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

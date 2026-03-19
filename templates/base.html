@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ 'dark' if current_user.is_authenticated and current_user.dark_mode else 'light' }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}SyllabusEngine{% endblock %} | SyllabusEngine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+<link rel="stylesheet" href="https://cdn.tailwindcss.com">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="{% if current_user.is_authenticated and current_user.role == 'admin' %}{{ url_for('admin.index') }}{% elif current_user.is_authenticated %}{{ url_for('dashboard.index') }}{% else %}{{ url_for('public.index') }}{% endif %}" class="logo" aria-label="SyllabusEngine home">
+      <img src="{{ url_for('static', filename='img/syllabusengine-logo.png') }}" alt="SyllabusEngine" class="logo-img">
+    </a>
+
+    <nav class="main-nav" id="main-nav">
+      {% if current_user.is_authenticated %}
+        {% if current_user.role == 'admin' %}
+          <a href="{{ url_for('admin.index') }}" class="nav-link nav-admin {% if request.endpoint and request.endpoint.startswith('admin.') %}active{% endif %}">Admin Panel</a>
+          <a href="{{ url_for('admin.users') }}" class="nav-link {% if request.endpoint=='admin.users' %}active{% endif %}">Students</a>
+          <a href="{{ url_for('admin.quiz_list') }}" class="nav-link {% if request.endpoint in ['admin.quiz_list','admin.quiz_create'] %}active{% endif %}">Quizzes</a>
+          <a href="{{ url_for('admin.chat_monitor') }}" class="nav-link {% if request.endpoint=='admin.chat_monitor' %}active{% endif %}">Chat</a>
+          <a href="{{ url_for('admin.logs') }}" class="nav-link {% if request.endpoint=='admin.logs' %}active{% endif %}">Logs</a>
+          <a href="{{ url_for('admin.search') }}" class="nav-link {% if request.endpoint=='admin.search' %}active{% endif %}">Search</a>
+        {% else %}
+          <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}">Dashboard</a>
+          <a href="{{ url_for('subjects.index') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('subjects.') %}active{% endif %}">Subjects</a>
+          <a href="{{ url_for('upload.upload_page') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('upload.') %}active{% endif %}">Upload</a>
+
+          <!-- AI dropdown -->
+          <div class="nav-dropdown" id="ai-dropdown">
+            <button class="nav-link nav-dropdown-btn {% if request.endpoint in ['assistant.assistant','assistant.ai_assist_page'] %}active{% endif %}"
+                    type="button" onclick="toggleDropdown('ai-dropdown')">
+              AI <span class="dropdown-caret"></span>
+            </button>
+            <div class="dropdown-menu">
+              <a href="{{ url_for('assistant.assistant') }}" class="dropdown-item {% if request.endpoint == 'assistant.assistant' %}active{% endif %}">Ask Kai</a>
+              <a href="{{ url_for('assistant.ai_assist_page') }}" class="dropdown-item {% if request.endpoint == 'assistant.ai_assist_page' %}active{% endif %}">Study Material</a>
+            </div>
+          </div>
+
+          <!-- Learning dropdown -->
+          <div class="nav-dropdown" id="learning-dropdown">
+            <button class="nav-link nav-dropdown-btn {% if request.endpoint and (request.endpoint.startswith('notes.') or request.endpoint.startswith('quiz.') or request.endpoint == 'assistant.ai_assist_page') %}active{% endif %}"
+                    type="button" onclick="toggleDropdown('learning-dropdown')">
+              Learning <span class="dropdown-caret"></span>
+            </button>
+            <div class="dropdown-menu">
+              <a href="{{ url_for('notes.index') }}" class="dropdown-item {% if request.endpoint and request.endpoint.startswith('notes.') %}active{% endif %}">Notes</a>
+              <a href="{{ url_for('quiz.quiz_home') }}" class="dropdown-item {% if request.endpoint and request.endpoint.startswith('quiz.') %}active{% endif %}">Quiz</a>
+              <a href="{{ url_for('assistant.ai_assist_page') }}" class="dropdown-item {% if request.endpoint == 'assistant.ai_assist_page' %}active{% endif %}">Study Material</a>
+            </div>
+          </div>
+
+          <!-- Progress dropdown -->
+          <div class="nav-dropdown" id="progress-dropdown">
+            <button class="nav-link nav-dropdown-btn {% if request.endpoint and (request.endpoint.startswith('analytics.') or request.endpoint.startswith('leaderboard.') or request.endpoint.startswith('attendance.') or request.endpoint.startswith('certificates.')) %}active{% endif %}"
+                    type="button" onclick="toggleDropdown('progress-dropdown')">
+              Progress <span class="dropdown-caret"></span>
+            </button>
+            <div class="dropdown-menu">
+              <a href="{{ url_for('analytics.dashboard') }}" class="dropdown-item {% if request.endpoint and request.endpoint.startswith('analytics.') %}active{% endif %}">Analytics</a>
+              <a href="{{ url_for('leaderboard.index') }}" class="dropdown-item {% if request.endpoint and request.endpoint.startswith('leaderboard.') %}active{% endif %}">Rank</a>
+              <a href="{{ url_for('attendance.my_attendance') }}" class="dropdown-item {% if request.endpoint and request.endpoint.startswith('attendance.') %}active{% endif %}">Attendance</a>
+              <a href="{{ url_for('certificates.index') }}" class="dropdown-item {% if request.endpoint and request.endpoint.startswith('certificates.') %}active{% endif %}">Certificates</a>
+            </div>
+          </div>
+
+          <!-- Single links -->
+          <a href="{{ url_for('calendar.calendar_view') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('calendar.') %}active{% endif %}">Planner</a>
+          <a href="{{ url_for('chat.index') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('chat.') %}active{% endif %}">Chat</a>
+        {% endif %}
+
+        <div class="nav-user">
+          <!-- Notification Bell -->
+          {% if not current_user.is_admin %}
+          <div class="notif-bell" id="notif-bell" onclick="toggleNotifDropdown()" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
+            <i class="fa-regular fa-bell"></i>
+            {% if unread_notif_count > 0 %}
+            <span class="notif-badge" id="notif-badge">{{ unread_notif_count }}</span>
+            {% endif %}
+            <div class="notif-dropdown-panel" id="notif-panel">
+              <div class="notif-panel-header">
+                <span class="bold" style="font-size:.88rem">Notifications</span>
+                <button onclick="markAllRead(event)" class="btn btn-ghost btn-sm" style="font-size:.75rem;padding:.2rem .5rem">Mark all read</button>
+              </div>
+              <div id="notif-list-items" style="max-height:320px;overflow-y:auto">
+                <div style="padding:1rem;text-align:center;color:var(--text3);font-size:.84rem">Loading…</div>
+              </div>
+              <a href="{{ url_for('notif.index') }}" class="notif-panel-footer">View all notifications →</a>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Dark mode -->
+          <button onclick="toggleDark()" class="btn btn-ghost btn-sm" title="Toggle dark mode">
+            <i class="fa-regular {{ 'fa-sun' if current_user.dark_mode else 'fa-moon' }}" style="margin-right:4px"></i>
+            <span class="theme-toggle-label">{{ 'Light' if current_user.dark_mode else 'Dark' }}</span>
+          </button>
+
+          <!-- Profile avatar -->
+          <a href="{{ url_for('profile.index') }}" class="nav-avatar" title="{{ current_user.name }}" style="text-decoration:none">
+            {% if current_user.avatar and current_user.avatar != 'default_avatar.png' %}
+              <img src="{{ url_for('static', filename=current_user.avatar) }}" alt="{{ current_user.name }}" style="width:28px;height:28px;border-radius:50%;object-fit:cover">
+            {% else %}
+              {{ current_user.name[0].upper() }}
+            {% endif %}
+          </a>
+          <span class="user-greeting">{{ current_user.name.split()[0] }}</span>
+          <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost btn-sm">Logout</a>
+        </div>
+      {% else %}
+        <a href="{{ url_for('public.about') }}" class="nav-link {% if request.endpoint == 'public.about' %}active{% endif %}">About</a>
+        <a href="{{ url_for('public.services') }}" class="nav-link {% if request.endpoint == 'public.services' %}active{% endif %}">Services</a>
+        <a href="{{ url_for('public.news_list') }}" class="nav-link {% if request.endpoint == 'public.news_list' %}active{% endif %}">News</a>
+        <a href="{{ url_for('public.testimonials_page') }}" class="nav-link {% if request.endpoint == 'public.testimonials_page' %}active{% endif %}">Testimonials</a>
+        <a href="{{ url_for('public.contact') }}" class="nav-link {% if request.endpoint == 'public.contact' %}active{% endif %}">Contact</a>
+        <a href="{{ url_for('auth.login') }}" class="nav-link">Login</a>
+        <a href="{{ url_for('auth.signup') }}" class="btn btn-primary btn-sm">Get Started</a>
+      {% endif %}
+    </nav>
+
+    <button class="nav-toggle" id="nav-toggle" aria-label="Main navigation" aria-expanded="false" aria-controls="main-nav">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<!-- Low Data Mode banner -->
+<div id="low-data-banner" class="low-data-banner" hidden>
+  <span class="low-data-text">Low Data Mode — AI calls disabled</span>
+  <button type="button" class="low-data-dismiss" onclick="setLowData(false)">Disable</button>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">
+          <span class="flash-message">{{ message }}</span>
+          <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<main class="main-content">{% block content %}{% endblock %}</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="footer-brand-row">
+        <img src="{{ url_for('static', filename='img/syllabusengine-logo.png') }}" alt="SyllabusEngine" class="footer-logo-img">
+      </div>
+      <p class="footer-tagline">Turn any syllabus into a complete semester system — AI-powered, always accurate.</p>
+      <div class="footer-badge">Free to use</div>
+      <div class="footer-social">
+        <a href="#" class="footer-social-btn" title="GitHub"><i class="fa-brands fa-github"></i></a>
+        <a href="#" class="footer-social-btn" title="Twitter / X"><i class="fa-brands fa-x-twitter"></i></a>
+        <a href="#" class="footer-social-btn" title="Community chat"><i class="fa-solid fa-comments"></i></a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <h4>Platform</h4>
+      <a href="{{ url_for('public.index') }}">Home</a>
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('dashboard.index') }}">Dashboard</a>
+        <a href="{{ url_for('subjects.index') }}">My Subjects</a>
+        <a href="{{ url_for('upload.upload_page') }}">Upload Syllabus</a>
+        <a href="{{ url_for('quiz.quiz_home') }}">Quiz Center</a>
+      {% else %}
+        <a href="{{ url_for('auth.signup') }}">Sign Up Free</a>
+        <a href="{{ url_for('auth.login') }}">Login</a>
+      {% endif %}
+    </div>
+    <div class="footer-col">
+      <h4>AI Tools</h4>
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('assistant.assistant') }}">Ask Kai AI</a>
+        <a href="{{ url_for('assistant.ai_assist_page') }}">Study Material</a>
+        <a href="{{ url_for('analytics.dashboard') }}">Analytics</a>
+        <a href="{{ url_for('schedule.schedule_home') }}">Smart Planner</a>
+      {% else %}
+        <a href="#">AI Study Tutor</a>
+        <a href="#">Quiz Generator</a>
+        <a href="#">Smart Scheduler</a>
+        <a href="#">Analytics</a>
+      {% endif %}
+    </div>
+    <div class="footer-col">
+      <h4>More</h4>
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('notes.index') }}">Notes</a>
+        <a href="{{ url_for('chat.index') }}">Group Chat</a>
+        <a href="{{ url_for('leaderboard.index') }}">Leaderboard</a>
+        <a href="{{ url_for('certificates.index') }}">Certificates</a>
+        <a href="{{ url_for('attendance.my_attendance') }}">Attendance</a>
+      {% else %}
+        <a href="#">Leaderboard</a>
+        <a href="#">Certificates</a>
+        <a href="#">Group Chat</a>
+        <a href="#">Attendance</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div>© 2025 SyllabusEngine · Built with care using Flask + Groq AI (Llama-3)</div>
+    <div class="footer-bottom-links">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Service</a>
+      <a href="#">Help Center</a>
+    </div>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+<script>
+// Futuristic Particles Effect
+function createParticles() {
+  const canvas = document.createElement('canvas');
+  const particles = document.getElementById('particles');
+  if (!particles) return;
+  
+  canvas.style.position = 'absolute';
+  canvas.style.top = '0';
+  canvas.style.left = '0';
+  canvas.style.pointerEvents = 'none';
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  particles.appendChild(canvas);
+  
+  const ctx = canvas.getContext('2d');
+  const particleArray = [];
+  
+  class Particle {
+    constructor() {
+      this.x = Math.random() * canvas.width;
+      this.y = Math.random() * canvas.height;
+      this.size = Math.random() * 3 + 1;
+      this.speedX = Math.random() * 1 - 0.5;
+      this.speedY = Math.random() * 1 - 0.5;
+    }
+    update() {
+      if (this.x > canvas.width || this.x < 0) this.speedX = -this.speedX;
+      if (this.y > canvas.height || this.y < 0) this.speedY = -this.speedY;
+      this.x += this.speedX;
+      this.y += this.speedY;
+    }
+    draw() {
+      ctx.fillStyle = 'rgba(79, 70, 229, 0.6)';
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  
+  function init() {
+    particleArray.length = 0;
+    for (let i = 0; i < 50; i++) {
+      particleArray.push(new Particle());
+    }
+  }
+  
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particleArray.forEach(p => {
+      p.update();
+      p.draw();
+    });
+    requestAnimationFrame(animate);
+  }
+  
+  init();
+  animate();
+  
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    init();
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', createParticles);
+} else {
+  createParticles();
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

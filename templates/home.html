@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}SyllabusEngine — AI-Powered Study Platform{% endblock %}
+{% block body_class %}page-home{% endblock %}
+
+{% block content %}
+
+<!-- ════════════════════ HERO ════════════════════ -->
+<section class="lp-hero">
+  <div class="lp-hero-bg"></div>
+  <div class="container lp-hero-inner">
+    <div class="lp-hero-badge">
+      <span class="lp-badge-dot"></span>
+      ⚡ SyllabusEngine &nbsp;·&nbsp; &copy; Copyright by &nbsp;·&nbsp; Soumya Das
+    </div>
+    <h1 class="lp-hero-h1">
+      Upload your syllabus.<br>
+      <span class="lp-gradient-text">Own your semester.</span>
+    </h1>
+    <p class="lp-hero-sub">
+      From chaotic PDF to a structured week-by-week plan, smart deadlines,
+      <strong>8 AI study modes</strong>, and a personal tutor — all automatically in 60 seconds.
+    </p>
+    <div class="lp-hero-cta">
+      <a href="{{ url_for('auth.signup') }}" class="btn-lp-primary">
+        🚀 Get Started Free
+      </a>
+      <a href="{{ url_for('auth.login') }}" class="btn-lp-outline">
+        🔐 Sign In
+      </a>
+    </div>
+    <!-- Stats pill -->
+    <div class="lp-stats-pill">
+      <div class="lp-stat"><span class="lp-stat-num">60s</span><span class="lp-stat-label">setup</span></div>
+      <div class="lp-stat-div"></div>
+      <div class="lp-stat"><span class="lp-stat-num">8</span><span class="lp-stat-label">AI modes</span></div>
+      <div class="lp-stat-div"></div>
+      <div class="lp-stat"><span class="lp-stat-num">100%</span><span class="lp-stat-label">free</span></div>
+      <div class="lp-stat-div"></div>
+      <div class="lp-stat"><span class="lp-stat-num">AI</span><span class="lp-stat-label">proctored quizzes</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════ FEATURES ════════════════════ -->
+<section class="lp-section" style="background:var(--surface)">
+  <div class="container">
+    <div class="lp-section-label">WHY SYLLABUSENGINE</div>
+    <h2 class="lp-section-title">Everything you need to ace your semester</h2>
+    <div class="lp-features-grid">
+      {% set features = [
+        ('📅','Smart Week Planner','Topics, study hours, assignments, difficulty rating — automatically built from your syllabus.'),
+        ('🤖','8-in-1 AI Tutor (Kai)','Explain concepts, generate notes, solve doubts, math solver, essay writer, and more.'),
+        ('🧪','Proctored Quiz System','Anti-cheat quizzes with fullscreen enforcement, violation tracking, and auto-certificates.'),
+        ('🏆','Leaderboard & Certs','Compete with peers. Earn PDF certificates automatically on passing quizzes.'),
+        ('📊','Analytics Dashboard','Track your progress, weak topics, study streaks, and performance trends with charts.'),
+        ('📋','Attendance Tracking','Admin-managed attendance with per-student reports and low-attendance warnings.'),
+        ('💬','Group Chat','Subject-wise group chats with classmates. Real-time messaging.'),
+        ('📝','Smart Notes','Create, organize and tag your notes linked to subjects and topics.'),
+        ('📅','Calendar & Reminders','All exams and deadlines on a visual calendar with email reminders.'),
+      ] %}
+      {% for icon, title, desc in features %}
+      <div class="lp-feature-card">
+        <div class="lp-feature-icon">{{ icon }}</div>
+        <h3 class="lp-feature-title">{{ title }}</h3>
+        <p class="lp-feature-desc">{{ desc }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════ HOW IT WORKS ════════════════════ -->
+<section class="lp-section lp-hiw">
+  <div class="container">
+    <div class="lp-section-label">HOW IT WORKS</div>
+    <h2 class="lp-section-title">Organised semester in 3 simple steps</h2>
+    <div class="lp-steps">
+      <div class="lp-step">
+        <div class="lp-step-num">01</div>
+        <div class="lp-step-icon">📄</div>
+        <h3>Upload Syllabus</h3>
+        <p>PDF, scan, or image. AI extracts topics, deadlines and exam dates in seconds.</p>
+      </div>
+      <div class="lp-step-arrow">→</div>
+      <div class="lp-step">
+        <div class="lp-step-num">02</div>
+        <div class="lp-step-icon">✅</div>
+        <h3>Review & Confirm</h3>
+        <p>You stay in control — approve every deadline before it's saved to your plan.</p>
+      </div>
+      <div class="lp-step-arrow">→</div>
+      <div class="lp-step">
+        <div class="lp-step-num">03</div>
+        <div class="lp-step-icon">🚀</div>
+        <h3>Study on Autopilot</h3>
+        <p>Week view, progress tracking, AI assistant, quizzes — all from one dashboard.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════ AI MODES ════════════════════ -->
+<section class="lp-section" style="background:var(--surface)">
+  <div class="container">
+    <div class="lp-section-label">8-IN-1 AI ASSISTANT</div>
+    <h2 class="lp-section-title">One AI, every study need</h2>
+    <div class="lp-ai-grid">
+      {% for icon, name, desc in [
+        ('📖','Explain Topic','Clear explanations with examples'),
+        ('📝','Generate Notes','Exam-ready structured notes'),
+        ('🧠','Practice Quiz','MCQ, short & long answers'),
+        ('❓','Solve My Doubt','Instant doubt resolution'),
+        ('📋','Important Qs','Board exam focus'),
+        ('⚡','Quick Revision','Last-minute summaries'),
+        ('📐','Math Solver','Step-by-step solutions'),
+        ('✍️','Essay Writer','Assignments & applications'),
+      ] %}
+      <div class="lp-ai-card">
+        <div class="lp-ai-icon">{{ icon }}</div>
+        <div class="lp-ai-name">{{ name }}</div>
+        <div class="lp-ai-desc">{{ desc }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════ CTA ════════════════════ -->
+<section class="lp-cta-section">
+  <div class="container">
+    <div class="lp-cta-card">
+      <div style="font-size:3rem;margin-bottom:.75rem">🎓</div>
+      <h2 class="lp-cta-title">Ready to stop winging it?</h2>
+      <p class="lp-cta-sub">Upload your first syllabus and get your entire semester organised in 60 seconds. Free, forever.</p>
+      <a href="{{ url_for('auth.signup') }}" class="btn-lp-primary" style="font-size:1rem;padding:1rem 2.8rem">
+        Upload your first syllabus →
+      </a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

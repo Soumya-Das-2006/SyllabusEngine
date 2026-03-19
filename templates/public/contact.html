@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Contact Us{% endblock %}
+{% block body_class %}page-public{% endblock %}
+{% block content %}
+<div class="page-container page-narrow">
+  <header class="page-header">
+    <div>
+      <h1>Contact us</h1>
+      <p class="text-muted">Questions, feedback, or partnership ideas? We would love to hear from you.</p>
+    </div>
+  </header>
+
+<form method="POST" action="{{ url_for('public.contact') }}" class="glass-card p-12">
+    <div class="form-group mb-6">
+      <label for="name" class="block text-lg font-bold mb-3 text-indigo-600">Name</label>
+      <input type="text" id="name" name="name" required class="w-full p-4 border-2 border-indigo-200 rounded-xl backdrop-blur-sm focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 transition-all" placeholder="Your full name">
+    </div>
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label for="message">Message</label>
+      <textarea id="message" name="message" rows="5" required placeholder="Tell us how we can help"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Send message</button>
+  </form>
+</div>
+{% endblock %}
