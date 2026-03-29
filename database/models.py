@@ -1,14 +1,18 @@
 from extensions import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import event
+import sqlalchemy as sa
 from datetime import datetime, timedelta
+from uuid import uuid4
 import json
 import secrets
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    uuid = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
@@ -17,6 +21,9 @@ class User(UserMixin, db.Model):
     reset_token = db.Column(db.String(100), nullable=True)
     reset_expires = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
     google_calendar_token = db.Column(db.Text, nullable=True)
     email_preferences = db.Column(db.Text, default='{"weekly_preview":true,"monday_alert":true,"exam_warning":true}')
 
@@ -78,12 +85,17 @@ class User(UserMixin, db.Model):
 class Subject(db.Model):
     __tablename__ = 'subjects'
     id              = db.Column(db.Integer, primary_key=True)
-    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    name            = db.Column(db.String(200), nullable=False)
+    uuid            = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid       = db.Column(db.String(36), nullable=True, index=True)
+    name            = db.Column(db.String(200), nullable=False, index=True)
     color           = db.Column(db.String(7), default='#6366f1')
     semester_length = db.Column(db.Integer, default=15)
     start_date      = db.Column(db.Date, nullable=True)
     created_at      = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at      = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted      = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at      = db.Column(db.DateTime, nullable=True)
     is_active       = db.Column(db.Boolean, default=True)
 
     syllabi         = db.relationship('Syllabus', backref='subject', lazy=True, cascade='all, delete-orphan')
@@ -112,7 +124,8 @@ class Subject(db.Model):
 class Syllabus(db.Model):
     __tablename__ = 'syllabi'
     id                 = db.Column(db.Integer, primary_key=True)
-    subject_id         = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
+    subject_id         = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    subject_uuid       = db.Column(db.String(36), nullable=True, index=True)
     file_path          = db.Column(db.String(500), nullable=False)
     original_filename  = db.Column(db.String(200))
     uploaded_at        = db.Column(db.DateTime, default=datetime.utcnow)
@@ -127,8 +140,9 @@ class Syllabus(db.Model):
 class StudyPlan(db.Model):
     __tablename__ = 'study_plans'
     id           = db.Column(db.Integer, primary_key=True)
-    subject_id   = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
-    syllabus_id  = db.Column(db.Integer, db.ForeignKey('syllabi.id'), nullable=True)
+    subject_id   = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    subject_uuid = db.Column(db.String(36), nullable=True, index=True)
+    syllabus_id  = db.Column(db.Integer, db.ForeignKey('syllabi.id', ondelete='SET NULL'), nullable=True)
     generated_at = db.Column(db.DateTime, default=datetime.utcnow)
     confirmed_at = db.Column(db.DateTime, nullable=True)
     course_title = db.Column(db.String(200))
@@ -145,7 +159,7 @@ class StudyPlan(db.Model):
 class Week(db.Model):
     __tablename__ = 'weeks'
     id                = db.Column(db.Integer, primary_key=True)
-    study_plan_id     = db.Column(db.Integer, db.ForeignKey('study_plans.id'), nullable=False)
+    study_plan_id     = db.Column(db.Integer, db.ForeignKey('study_plans.id', ondelete='CASCADE'), nullable=False)
     week_number       = db.Column(db.Integer, nullable=False)
     date_start        = db.Column(db.Date, nullable=True)
     date_end          = db.Column(db.Date, nullable=True)
@@ -170,8 +184,9 @@ class Week(db.Model):
 class Assignment(db.Model):
     __tablename__ = 'assignments'
     id                = db.Column(db.Integer, primary_key=True)
-    week_id           = db.Column(db.Integer, db.ForeignKey('weeks.id'), nullable=True)
-    subject_id        = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
+    week_id           = db.Column(db.Integer, db.ForeignKey('weeks.id', ondelete='SET NULL'), nullable=True)
+    subject_id        = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    subject_uuid      = db.Column(db.String(36), nullable=True, index=True)
     title             = db.Column(db.String(300), nullable=False)
     description       = db.Column(db.Text)
     due_date          = db.Column(db.Date, nullable=True)
@@ -188,7 +203,7 @@ class Assignment(db.Model):
 class Exam(db.Model):
     __tablename__ = 'exams'
     id               = db.Column(db.Integer, primary_key=True)
-    study_plan_id    = db.Column(db.Integer, db.ForeignKey('study_plans.id'), nullable=False)
+    study_plan_id    = db.Column(db.Integer, db.ForeignKey('study_plans.id', ondelete='CASCADE'), nullable=False)
     name             = db.Column(db.String(200), nullable=False)
     exam_date        = db.Column(db.Date, nullable=True)
     coverage_weeks   = db.Column(db.Text, default='[]')
@@ -204,8 +219,10 @@ class Exam(db.Model):
 class CalendarEvent(db.Model):
     __tablename__ = 'calendar_events'
     id               = db.Column(db.Integer, primary_key=True)
-    user_id          = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    subject_id       = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
+    user_id          = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid        = db.Column(db.String(36), nullable=True, index=True)
+    subject_id       = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    subject_uuid     = db.Column(db.String(36), nullable=True, index=True)
     event_type       = db.Column(db.String(30))
     title            = db.Column(db.String(300))
     description      = db.Column(db.Text)
@@ -219,10 +236,12 @@ class CalendarEvent(db.Model):
 class Progress(db.Model):
     __tablename__ = 'progress'
     id            = db.Column(db.Integer, primary_key=True)
-    user_id       = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    subject_id    = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
-    week_id       = db.Column(db.Integer, db.ForeignKey('weeks.id'), nullable=True)
-    assignment_id = db.Column(db.Integer, db.ForeignKey('assignments.id'), nullable=True)
+    user_id       = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid     = db.Column(db.String(36), nullable=True, index=True)
+    subject_id    = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    subject_uuid  = db.Column(db.String(36), nullable=True, index=True)
+    week_id       = db.Column(db.Integer, db.ForeignKey('weeks.id', ondelete='SET NULL'), nullable=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('assignments.id', ondelete='SET NULL'), nullable=True)
     item_type     = db.Column(db.String(30))
     item_key      = db.Column(db.String(200))
     is_completed  = db.Column(db.Boolean, default=False)
@@ -232,8 +251,10 @@ class Progress(db.Model):
 class AIConversation(db.Model):
     __tablename__ = 'ai_conversations'
     id         = db.Column(db.Integer, primary_key=True)
-    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid  = db.Column(db.String(36), nullable=True, index=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
+    subject_uuid = db.Column(db.String(36), nullable=True, index=True)
     role       = db.Column(db.String(10))
     message    = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -242,7 +263,8 @@ class AIConversation(db.Model):
 class OAuthToken(db.Model):
     __tablename__ = 'oauth_tokens'
     id         = db.Column(db.Integer, primary_key=True)
-    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid  = db.Column(db.String(36), nullable=True, index=True)
     provider   = db.Column(db.String(30), default='google')
     token_data = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -254,8 +276,11 @@ class OAuthToken(db.Model):
 class Quiz(db.Model):
     __tablename__ = 'quizzes'
     id               = db.Column(db.Integer, primary_key=True)
-    user_id          = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    subject_id       = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    uuid             = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
+    user_id          = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid        = db.Column(db.String(36), nullable=True, index=True)
+    subject_id       = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
+    subject_uuid     = db.Column(db.String(36), nullable=True, index=True)
     title            = db.Column(db.String(300), nullable=False)
     topic            = db.Column(db.String(300), nullable=True)
     description      = db.Column(db.Text, nullable=True)
@@ -274,6 +299,9 @@ class Quiz(db.Model):
     starts_at        = db.Column(db.DateTime, nullable=True)
     ends_at          = db.Column(db.DateTime, nullable=True)
     created_at       = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at       = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted       = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at       = db.Column(db.DateTime, nullable=True)
 
     questions = db.relationship('Question', backref='quiz', lazy=True, cascade='all, delete-orphan')
     attempts  = db.relationship('UserQuizAttempt', backref='quiz', lazy=True, cascade='all, delete-orphan')
@@ -286,7 +314,8 @@ class Quiz(db.Model):
 class Question(db.Model):
     __tablename__ = 'questions'
     id             = db.Column(db.Integer, primary_key=True)
-    quiz_id        = db.Column(db.Integer, db.ForeignKey('quizzes.id'), nullable=False)
+    quiz_id        = db.Column(db.Integer, db.ForeignKey('quizzes.id', ondelete='CASCADE'), nullable=False)
+    quiz_uuid      = db.Column(db.String(36), nullable=True, index=True)
     question_text  = db.Column(db.Text, nullable=False)
     option_a       = db.Column(db.String(500), nullable=False)
     option_b       = db.Column(db.String(500), nullable=False)
@@ -310,9 +339,12 @@ class Question(db.Model):
 class UserQuizAttempt(db.Model):
     __tablename__ = 'user_quiz_attempts'
     id              = db.Column(db.Integer, primary_key=True)
-    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    quiz_id         = db.Column(db.Integer, db.ForeignKey('quizzes.id'), nullable=False)
-    subject_id      = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid       = db.Column(db.String(36), nullable=True, index=True)
+    quiz_id         = db.Column(db.Integer, db.ForeignKey('quizzes.id', ondelete='CASCADE'), nullable=False)
+    quiz_uuid       = db.Column(db.String(36), nullable=True, index=True)
+    subject_id      = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
+    subject_uuid    = db.Column(db.String(36), nullable=True, index=True)
     score           = db.Column(db.Integer, default=0)
     total_questions = db.Column(db.Integer, default=0)
     accuracy_pct    = db.Column(db.Float, default=0.0)
@@ -338,8 +370,10 @@ class UserQuizAttempt(db.Model):
 class TopicPerformance(db.Model):
     __tablename__ = 'topic_performance'
     id             = db.Column(db.Integer, primary_key=True)
-    user_id        = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    subject_id     = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid      = db.Column(db.String(36), nullable=True, index=True)
+    subject_id     = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
+    subject_uuid   = db.Column(db.String(36), nullable=True, index=True)
     topic          = db.Column(db.String(300), nullable=False)
     attempts       = db.Column(db.Integer, default=0)
     correct_count  = db.Column(db.Integer, default=0)
@@ -362,8 +396,10 @@ class TopicPerformance(db.Model):
 class StudyAnalytics(db.Model):
     __tablename__ = 'study_analytics'
     id                = db.Column(db.Integer, primary_key=True)
-    user_id           = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    subject_id        = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    user_id           = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid         = db.Column(db.String(36), nullable=True, index=True)
+    subject_id        = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
+    subject_uuid      = db.Column(db.String(36), nullable=True, index=True)
     completion_rate   = db.Column(db.Float, default=0.0)
     consistency_score = db.Column(db.Float, default=0.0)
     avg_score         = db.Column(db.Float, default=0.0)
@@ -381,8 +417,10 @@ class StudyAnalytics(db.Model):
 class StudySchedule(db.Model):
     __tablename__ = 'study_schedules'
     id         = db.Column(db.Integer, primary_key=True)
-    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid  = db.Column(db.String(36), nullable=True, index=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
+    subject_uuid = db.Column(db.String(36), nullable=True, index=True)
     date       = db.Column(db.Date, nullable=False)
     topic      = db.Column(db.String(400), nullable=False)
     duration   = db.Column(db.Integer, default=60)
@@ -399,8 +437,11 @@ class StudySchedule(db.Model):
 class Note(db.Model):
     __tablename__ = 'notes'
     id         = db.Column(db.Integer, primary_key=True)
-    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    uuid       = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid  = db.Column(db.String(36), nullable=True, index=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
+    subject_uuid = db.Column(db.String(36), nullable=True, index=True)
     title      = db.Column(db.String(300), nullable=False)
     content    = db.Column(db.Text, default='')
     tags       = db.Column(db.String(500), default='')
@@ -408,6 +449,8 @@ class Note(db.Model):
     is_pinned  = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
     def get_tags(self):
         return [t.strip() for t in self.tags.split(',') if t.strip()] if self.tags else []
@@ -418,11 +461,17 @@ class Note(db.Model):
 class ChatRoom(db.Model):
     __tablename__ = 'chat_rooms'
     id         = db.Column(db.Integer, primary_key=True)
+    uuid       = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
     name       = db.Column(db.String(200), nullable=False)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
-    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
+    subject_uuid = db.Column(db.String(36), nullable=True, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    created_by_uuid = db.Column(db.String(36), nullable=True, index=True)
     is_public  = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
     messages = db.relationship('ChatMessage', backref='room', lazy=True, cascade='all, delete-orphan')
 
@@ -430,10 +479,16 @@ class ChatRoom(db.Model):
 class ChatMessage(db.Model):
     __tablename__ = 'chat_messages'
     id         = db.Column(db.Integer, primary_key=True)
-    room_id    = db.Column(db.Integer, db.ForeignKey('chat_rooms.id'), nullable=False)
-    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    uuid       = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
+    room_id    = db.Column(db.Integer, db.ForeignKey('chat_rooms.id', ondelete='CASCADE'), nullable=False)
+    room_uuid  = db.Column(db.String(36), nullable=True, index=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid  = db.Column(db.String(36), nullable=True, index=True)
     message    = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self):
         return {
@@ -451,30 +506,41 @@ class ChatMessage(db.Model):
 class News(db.Model):
     __tablename__ = 'news'
     id         = db.Column(db.Integer, primary_key=True)
+    uuid       = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
     title      = db.Column(db.String(200), nullable=False)
     summary    = db.Column(db.String(500))
     content    = db.Column(db.Text, nullable=False)
     image_url  = db.Column(db.String(300))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
 
 class Testimonial(db.Model):
     __tablename__ = 'testimonials'
     id         = db.Column(db.Integer, primary_key=True)
+    uuid       = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
     name       = db.Column(db.String(120), nullable=False)
     photo_url  = db.Column(db.String(300))
     feedback   = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
 
 class ContactMessage(db.Model):
     __tablename__ = 'contact_messages'
     id         = db.Column(db.Integer, primary_key=True)
+    uuid       = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
     name       = db.Column(db.String(120), nullable=False)
-    email      = db.Column(db.String(200), nullable=False)
+    email      = db.Column(db.String(200), nullable=False, index=True)
     message    = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
     is_read    = db.Column(db.Boolean, default=False)
 
 
@@ -483,13 +549,18 @@ class ContactMessage(db.Model):
 class Notification(db.Model):
     __tablename__ = 'notifications'
     id         = db.Column(db.Integer, primary_key=True)
-    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    uuid       = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid  = db.Column(db.String(36), nullable=True, index=True)
     title      = db.Column(db.String(200), nullable=False)
     message    = db.Column(db.Text)
     notif_type = db.Column(db.String(30), default='info')  # info|quiz|result|warning|broadcast
     link       = db.Column(db.String(300))
     is_read    = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
 
 # ─────────────────────── ACTIVITY LOG (NEW) ─────────────────────────────────
@@ -497,7 +568,8 @@ class Notification(db.Model):
 class ActivityLog(db.Model):
     __tablename__ = 'activity_logs'
     id         = db.Column(db.Integer, primary_key=True)
-    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    user_uuid  = db.Column(db.String(36), nullable=True, index=True)
     action     = db.Column(db.String(100), nullable=False)
     detail     = db.Column(db.Text)
     ip         = db.Column(db.String(50))
@@ -509,12 +581,19 @@ class ActivityLog(db.Model):
 class Certificate(db.Model):
     __tablename__ = 'certificates'
     id          = db.Column(db.Integer, primary_key=True)
-    user_id     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    quiz_id     = db.Column(db.Integer, db.ForeignKey('quizzes.id'), nullable=True)
-    attempt_id  = db.Column(db.Integer, db.ForeignKey('user_quiz_attempts.id'), nullable=True)
+    uuid        = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid   = db.Column(db.String(36), nullable=True, index=True)
+    quiz_id     = db.Column(db.Integer, db.ForeignKey('quizzes.id', ondelete='SET NULL'), nullable=True)
+    quiz_uuid   = db.Column(db.String(36), nullable=True, index=True)
+    attempt_id  = db.Column(db.Integer, db.ForeignKey('user_quiz_attempts.id', ondelete='SET NULL'), nullable=True)
     title       = db.Column(db.String(300), nullable=False)
     file_path   = db.Column(db.String(500))
     cert_number = db.Column(db.String(50), unique=True)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at  = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted  = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at  = db.Column(db.DateTime, nullable=True)
     issued_at   = db.Column(db.DateTime, default=datetime.utcnow)
 
 # ─────────────────────── ATTENDANCE (NEW) ──────────────────────────────────
@@ -523,11 +602,17 @@ class AttendanceSession(db.Model):
     """Admin creates a session; students are auto-marked or manually updated."""
     __tablename__ = 'attendance_sessions'
     id         = db.Column(db.Integer, primary_key=True)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    uuid       = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
+    subject_uuid = db.Column(db.String(36), nullable=True, index=True)
     title      = db.Column(db.String(200), nullable=False, default='Class')
     date       = db.Column(db.Date, nullable=False)
-    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    created_by_uuid = db.Column(db.String(36), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
     records = db.relationship('AttendanceRecord', backref='session', lazy='dynamic', cascade='all,delete-orphan')
 
@@ -535,15 +620,156 @@ class AttendanceSession(db.Model):
 class AttendanceRecord(db.Model):
     __tablename__ = 'attendance_records'
     id         = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.Integer, db.ForeignKey('attendance_sessions.id'), nullable=False)
-    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    uuid       = db.Column(db.String(36), unique=True, index=True, default=lambda: str(uuid4()))
+    session_id = db.Column(db.Integer, db.ForeignKey('attendance_sessions.id', ondelete='CASCADE'), nullable=False)
+    session_uuid = db.Column(db.String(36), nullable=True, index=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_uuid  = db.Column(db.String(36), nullable=True, index=True)
     status     = db.Column(db.String(20), default='present')  # present|absent|late
     note       = db.Column(db.String(200))
     marked_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (
         db.Index('ix_attendance_records_session_user', 'session_id', 'user_id'),
         db.UniqueConstraint('session_id', 'user_id', name='unique_attendance_per_session')
     )
+
+
+def _sync_shadow_pair(connection, target, id_attr, uuid_attr, parent_table):
+    """Keep integer FK and UUID shadow FK in sync in both directions."""
+    id_value = getattr(target, id_attr, None)
+    uuid_value = getattr(target, uuid_attr, None)
+
+    if id_value is not None and not uuid_value:
+        value = connection.execute(
+            sa.select(parent_table.c.uuid).where(parent_table.c.id == id_value)
+        ).scalar_one_or_none()
+        if value:
+            setattr(target, uuid_attr, value)
+        return
+
+    if uuid_value and id_value is None:
+        value = connection.execute(
+            sa.select(parent_table.c.id).where(parent_table.c.uuid == uuid_value)
+        ).scalar_one_or_none()
+        if value is not None:
+            setattr(target, id_attr, value)
+
+
+def _register_shadow_sync(model_cls, mappings):
+    """Register before-insert/update hooks for UUID shadow FK synchronization."""
+
+    @event.listens_for(model_cls, 'before_insert')
+    @event.listens_for(model_cls, 'before_update')
+    def _listener(mapper, connection, target):
+        for id_attr, uuid_attr, parent_table in mappings:
+            _sync_shadow_pair(connection, target, id_attr, uuid_attr, parent_table)
+
+
+_register_shadow_sync(Subject, [
+    ('user_id', 'user_uuid', User.__table__),
+])
+
+_register_shadow_sync(Syllabus, [
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(StudyPlan, [
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(Assignment, [
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(CalendarEvent, [
+    ('user_id', 'user_uuid', User.__table__),
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(Progress, [
+    ('user_id', 'user_uuid', User.__table__),
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(AIConversation, [
+    ('user_id', 'user_uuid', User.__table__),
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(OAuthToken, [
+    ('user_id', 'user_uuid', User.__table__),
+])
+
+_register_shadow_sync(Quiz, [
+    ('user_id', 'user_uuid', User.__table__),
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(Question, [
+    ('quiz_id', 'quiz_uuid', Quiz.__table__),
+])
+
+_register_shadow_sync(UserQuizAttempt, [
+    ('user_id', 'user_uuid', User.__table__),
+    ('quiz_id', 'quiz_uuid', Quiz.__table__),
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(TopicPerformance, [
+    ('user_id', 'user_uuid', User.__table__),
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(StudyAnalytics, [
+    ('user_id', 'user_uuid', User.__table__),
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(StudySchedule, [
+    ('user_id', 'user_uuid', User.__table__),
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(Note, [
+    ('user_id', 'user_uuid', User.__table__),
+    ('subject_id', 'subject_uuid', Subject.__table__),
+])
+
+_register_shadow_sync(ChatRoom, [
+    ('subject_id', 'subject_uuid', Subject.__table__),
+    ('created_by', 'created_by_uuid', User.__table__),
+])
+
+_register_shadow_sync(ChatMessage, [
+    ('room_id', 'room_uuid', ChatRoom.__table__),
+    ('user_id', 'user_uuid', User.__table__),
+])
+
+_register_shadow_sync(Notification, [
+    ('user_id', 'user_uuid', User.__table__),
+])
+
+_register_shadow_sync(ActivityLog, [
+    ('user_id', 'user_uuid', User.__table__),
+])
+
+_register_shadow_sync(Certificate, [
+    ('user_id', 'user_uuid', User.__table__),
+    ('quiz_id', 'quiz_uuid', Quiz.__table__),
+])
+
+_register_shadow_sync(AttendanceSession, [
+    ('subject_id', 'subject_uuid', Subject.__table__),
+    ('created_by', 'created_by_uuid', User.__table__),
+])
+
+_register_shadow_sync(AttendanceRecord, [
+    ('session_id', 'session_uuid', AttendanceSession.__table__),
+    ('user_id', 'user_uuid', User.__table__),
+])
 
 

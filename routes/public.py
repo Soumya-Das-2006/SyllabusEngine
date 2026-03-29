@@ -9,8 +9,16 @@ public_bp = Blueprint('public', __name__)
 
 @public_bp.route('/')
 def index():
-    latest_news = News.query.order_by(News.created_at.desc()).limit(3).all()
-    testimonials = Testimonial.query.order_by(Testimonial.created_at.desc()).limit(3).all()
+    latest_news = (News.query
+                   .filter_by(is_deleted=False)
+                   .filter(~News.title.like('[ARCHIVED] %'))
+                   .order_by(News.created_at.desc())
+                   .limit(3).all())
+    testimonials = (Testimonial.query
+                    .filter_by(is_deleted=False)
+                    .filter(~Testimonial.name.like('[ARCHIVED] %'))
+                    .order_by(Testimonial.created_at.desc())
+                    .limit(3).all())
     return render_template('public/index.html', latest_news=latest_news, testimonials=testimonials)
 
 
@@ -26,20 +34,28 @@ def services():
 
 @public_bp.route('/testimonials')
 def testimonials_page():
-    testimonials = Testimonial.query.order_by(Testimonial.created_at.desc()).all()
+    testimonials = (Testimonial.query
+                    .filter_by(is_deleted=False)
+                    .filter(~Testimonial.name.like('[ARCHIVED] %'))
+                    .order_by(Testimonial.created_at.desc())
+                    .limit(12).all())
     return render_template('public/testimonials.html', testimonials=testimonials)
 
 
 @public_bp.route('/news')
 def news_list():
     page = request.args.get('page', 1, type=int)
-    pagination = News.query.order_by(News.created_at.desc()).paginate(page=page, per_page=6, error_out=False)
+    pagination = (News.query
+                  .filter_by(is_deleted=False)
+                  .filter(~News.title.like('[ARCHIVED] %'))
+                  .order_by(News.created_at.desc())
+                  .paginate(page=page, per_page=6, error_out=False))
     return render_template('public/news.html', pagination=pagination, news_items=pagination.items)
 
 
 @public_bp.route('/news/<int:news_id>')
 def news_detail(news_id):
-    item = News.query.get_or_404(news_id)
+    item = News.query.filter(News.id == news_id, News.is_deleted.is_(False), ~News.title.like('[ARCHIVED] %')).first_or_404()
     return render_template('public/news_detail.html', item=item)
 
 

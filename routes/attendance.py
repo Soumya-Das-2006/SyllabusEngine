@@ -19,8 +19,9 @@ def admin_required(f):
 @attendance_bp.route('/me')
 @login_required
 def my_attendance():
-    records = (AttendanceRecord.query.filter_by(user_id=current_user.id)
+    records = (AttendanceRecord.query.filter_by(user_id=current_user.id, is_deleted=False)
                .join(AttendanceSession)
+               .filter(AttendanceSession.is_deleted.is_(False))
                .order_by(AttendanceSession.date.desc()).all())
     total   = len(records)
     present = sum(1 for r in records if r.status == 'present')
@@ -40,7 +41,7 @@ def my_attendance():
 @login_required
 @admin_required
 def admin_view():
-    sessions  = AttendanceSession.query.order_by(AttendanceSession.date.desc()).limit(30).all()
+    sessions  = AttendanceSession.query.filter_by(is_deleted=False).order_by(AttendanceSession.date.desc()).limit(30).all()
     subjects  = Subject.query.filter_by(is_active=True).all()
     students  = User.query.filter_by(role='student', is_active=True).order_by(User.name).all()
     return render_template('attendance/admin_attendance.html',
@@ -50,14 +51,31 @@ def admin_view():
 @login_required
 @admin_required
 def create_session():
+    """Create an attendance session and seed default records for active students."""
     subject_id = request.form.get('subject_id') or None
+    if subject_id:
+        try:
+            subject_id = int(subject_id)
+        except (TypeError, ValueError):
+            flash('Invalid subject selected.', 'error')
+            return redirect(url_for('attendance.admin_view'))
     title      = request.form.get('title', 'Class').strip()
     sess_date  = request.form.get('date') or str(date.today())
+    try:
+        parsed_date = date.fromisoformat(sess_date)
+    except ValueError:
+        flash('Invalid session date. Please use YYYY-MM-DD.', 'error')
+        return redirect(url_for('attendance.admin_view'))
+
+    if not title:
+        flash('Session title is required.', 'error')
+        return redirect(url_for('attendance.admin_view'))
+
     students   = User.query.filter_by(role='student', is_active=True).all()
     sess = AttendanceSession(
         subject_id=subject_id or None,
         title=title,
-        date=date.fromisoformat(sess_date),
+        date=parsed_date,
         created_by=current_user.id)
     db.session.add(sess)
     db.session.flush()
@@ -72,8 +90,8 @@ def create_session():
 @login_required
 @admin_required
 def session_detail(session_id):
-    sess     = AttendanceSession.query.get_or_404(session_id)
-    records  = AttendanceRecord.query.filter_by(session_id=session_id).all()
+    sess     = AttendanceSession.query.filter_by(id=session_id, is_deleted=False).first_or_404()
+    records  = AttendanceRecord.query.filter_by(session_id=session_id, is_deleted=False).all()
     students = User.query.filter_by(role='student', is_active=True).order_by(User.name).all()
     rec_map  = {r.user_id: r for r in records}
     return render_template('attendance/session_detail.html',
@@ -83,10 +101,23 @@ def session_detail(session_id):
 @login_required
 @admin_required
 def mark(session_id):
-    data    = request.get_json()
-    user_id = int(data['user_id'])
-    status  = data['status']
-    rec = AttendanceRecord.query.filter_by(session_id=session_id, user_id=user_id).first()
+    """Update a student's attendance status for a given session."""
+    data = request.get_json(silent=True) or {}
+    try:
+        user_id = int(data.get('user_id'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid user id.'}), 400
+
+    status = (data.get('status') or '').strip().lower()
+    if status not in {'present', 'absent', 'late'}:
+        return jsonify({'error': 'Invalid status value.'}), 400
+
+    AttendanceSession.query.filter_by(id=session_id, is_deleted=False).first_or_404()
+    user = User.query.filter_by(id=user_id, role='student').first()
+    if not user:
+        return jsonify({'error': 'Student not found.'}), 404
+
+    rec = AttendanceRecord.query.filter_by(session_id=session_id, user_id=user_id, is_deleted=False).first()
     if not rec:
         rec = AttendanceRecord(session_id=session_id, user_id=user_id)
         db.session.add(rec)
@@ -102,8 +133,9 @@ def mark(session_id):
 def student_attendance(user_id):
     """Admin view of a single student's full attendance history."""
     user    = User.query.get_or_404(user_id)
-    records = (AttendanceRecord.query.filter_by(user_id=user_id)
+    records = (AttendanceRecord.query.filter_by(user_id=user_id, is_deleted=False)
                .join(AttendanceSession)
+               .filter(AttendanceSession.is_deleted.is_(False))
                .order_by(AttendanceSession.date.desc()).all())
     total   = len(records)
     present = sum(1 for r in records if r.status == 'present')
@@ -122,7 +154,7 @@ def overview():
     students = User.query.filter_by(role='student', is_active=True).order_by(User.name).all()
     data = []
     for s in students:
-        records = AttendanceRecord.query.filter_by(user_id=s.id).all()
+        records = AttendanceRecord.query.filter_by(user_id=s.id, is_deleted=False).all()
         total   = len(records)
         present = sum(1 for r in records if r.status == 'present')
         late    = sum(1 for r in records if r.status == 'late')

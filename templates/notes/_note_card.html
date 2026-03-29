@@ -8,7 +8,7 @@
       <button onclick="pinNote({{ n.id }})" class="btn btn-ghost btn-sm" title="{{ 'Unpin' if n.is_pinned else 'Pin' }}">
         {{ 'Unpin' if n.is_pinned else 'Pin' }}
       </button>
-      <a href="{{ url_for('notes.edit', note_id=n.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+      <a href="{{ url_for('notes.edit_by_uuid', note_uuid=n.uuid) }}" class="btn btn-ghost btn-sm">Edit</a>
       <button onclick="deleteNote({{ n.id }})" class="btn btn-ghost btn-sm note-delete-btn">Delete</button>
     </div>
   </div>

@@ -11,7 +11,7 @@ notes_bp = Blueprint('notes', __name__, url_prefix='/notes')
 def index():
     q = request.args.get('q', '').strip()
     subject_id = request.args.get('subject_id', type=int)
-    query = Note.query.filter_by(user_id=current_user.id)
+    query = Note.query.filter_by(user_id=current_user.id, is_deleted=False).filter(~Note.title.like('[ARCHIVED] %'))
     if q:
         query = query.filter(Note.title.ilike(f'%{q}%') | Note.content.ilike(f'%{q}%'))
     if subject_id:
@@ -46,7 +46,7 @@ def new():
 @notes_bp.route('/<int:note_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit(note_id):
-    note = Note.query.filter_by(id=note_id, user_id=current_user.id).first_or_404()
+    note = Note.query.filter_by(id=note_id, user_id=current_user.id, is_deleted=False).first_or_404()
     subjects = Subject.query.filter_by(user_id=current_user.id, is_active=True).all()
     if request.method == 'POST':
         note.title      = request.form.get('title', note.title).strip()
@@ -63,15 +63,31 @@ def edit(note_id):
 @notes_bp.route('/<int:note_id>/delete', methods=['POST'])
 @login_required
 def delete(note_id):
-    note = Note.query.filter_by(id=note_id, user_id=current_user.id).first_or_404()
-    db.session.delete(note)
+    """Soft-delete a note by archiving its visible content."""
+    note = Note.query.filter_by(id=note_id, user_id=current_user.id, is_deleted=False).first_or_404()
+    if not note.title.startswith('[ARCHIVED] '):
+        note.title = f'[ARCHIVED] {note.title}'
+    note.content = ''
+    note.tags = ''
+    note.is_pinned = False
+    note.is_deleted = True
+    note.deleted_at = datetime.utcnow()
+    note.updated_at = datetime.utcnow()
     db.session.commit()
     return jsonify({'ok': True})
 
 @notes_bp.route('/<int:note_id>/pin', methods=['POST'])
 @login_required
 def pin(note_id):
-    note = Note.query.filter_by(id=note_id, user_id=current_user.id).first_or_404()
+    note = Note.query.filter_by(id=note_id, user_id=current_user.id, is_deleted=False).first_or_404()
     note.is_pinned = not note.is_pinned
     db.session.commit()
     return jsonify({'ok': True, 'pinned': note.is_pinned})
+
+
+@notes_bp.route('/u/<string:note_uuid>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_by_uuid(note_uuid):
+    """UUID variant for note editing while int routes remain backward-compatible."""
+    note = Note.query.filter_by(uuid=note_uuid, user_id=current_user.id, is_deleted=False).first_or_404()
+    return redirect(url_for('notes.edit', note_id=note.id))

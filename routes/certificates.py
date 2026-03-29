@@ -9,13 +9,23 @@ certificates_bp = Blueprint('certificates', __name__, url_prefix='/certificates'
 @certificates_bp.route('/')
 @login_required
 def index():
-    certs = Certificate.query.filter_by(user_id=current_user.id).order_by(Certificate.issued_at.desc()).all()
+    certs = Certificate.query.filter_by(user_id=current_user.id, is_deleted=False).order_by(Certificate.issued_at.desc()).all()
     return render_template('certificates/index.html', certs=certs)
 
 @certificates_bp.route('/download/<int:cert_id>')
 @login_required
 def download(cert_id):
-    cert = Certificate.query.filter_by(id=cert_id, user_id=current_user.id).first_or_404()
+    cert = Certificate.query.filter_by(id=cert_id, user_id=current_user.id, is_deleted=False).first_or_404()
+    pdf  = _generate_pdf(cert)
+    return send_file(io.BytesIO(pdf), mimetype='application/pdf',
+        as_attachment=True, download_name=f'certificate_{cert.cert_number}.pdf')
+
+
+@certificates_bp.route('/download/u/<string:cert_uuid>')
+@login_required
+def download_by_uuid(cert_uuid):
+    """UUID-based certificate download endpoint for non-sequential URLs."""
+    cert = Certificate.query.filter_by(uuid=cert_uuid, user_id=current_user.id, is_deleted=False).first_or_404()
     pdf  = _generate_pdf(cert)
     return send_file(io.BytesIO(pdf), mimetype='application/pdf',
         as_attachment=True, download_name=f'certificate_{cert.cert_number}.pdf')

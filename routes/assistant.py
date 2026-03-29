@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required, current_user
 from database.models import Subject, AIConversation, Week, Assignment, Exam, Syllabus, db
 from datetime import date
@@ -286,8 +286,9 @@ def pdf_extract():
 
         return jsonify({'pdf_text': text, 'pages': pages, 'ocr_used': ocr_used})
 
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        current_app.logger.exception('Assistant PDF extract failed for user_id=%s', current_user.id)
+        return jsonify({'error': 'Could not process this PDF right now. Please try again.'}), 500
     finally:
         try:
             os.remove(tmp_path)
@@ -300,7 +301,7 @@ def pdf_extract():
 @assistant_bp.route('/api/assistant/chat', methods=['POST'])
 @login_required
 def chat():
-    data       = request.get_json()
+    data       = request.get_json(silent=True) or {}
     subject_id = data.get('subject_id')
     message    = data.get('message', '').strip()
     mode       = data.get('mode', 'explain')
@@ -465,8 +466,6 @@ def chat():
             subject_id=effective_subject_id,
             role='assistant', message=response
         )
-        if mode != 'explain':
-            ai_entry.mode = mode
         db.session.add(ai_entry)
         db.session.commit()
 
@@ -476,8 +475,19 @@ def chat():
             'mode':       mode,
         })
 
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        current_app.logger.exception('Assistant chat failed for user_id=%s', current_user.id)
+        fallback = (
+            f"Kai is temporarily unavailable right now, but I can still guide you. "
+            f"For your topic '{message}', start with: "
+            "(1) core definition, (2) 3 key points, (3) one example, "
+            "(4) a short self-test. Please try again in a moment for a full AI answer."
+        )
+        return jsonify({
+            'response': fallback,
+            'mode': mode,
+            'fallback': True,
+        }), 200
 
 
 # ── Session API ───────────────────────────────────────────────────────────────

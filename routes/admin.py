@@ -147,14 +147,17 @@ def toggle_user(user_id):
 @login_required
 @admin_required
 def delete_user(user_id):
+    """Soft-delete a user by deactivating access instead of removing records."""
     user = User.query.get_or_404(user_id)
     if user.id == current_user.id:
         flash('Cannot delete your own account.', 'error')
         return redirect(url_for('admin.users'))
     email = user.email
-    db.session.delete(user); db.session.commit()
+    user.is_active = False
+    user.role = 'archived'
+    db.session.commit()
     _log('delete_user', email)
-    flash(f'User {email} deleted.', 'success')
+    flash(f'User {email} archived.', 'success')
     return redirect(url_for('admin.users'))
 
 @admin_bp.route('/users/export')
@@ -237,8 +240,9 @@ Difficulty: {diff}. Return ONLY JSON (no markdown):
                             difficulty=q.get('difficulty', diff),
                             topic_tag=q.get('topic_tag', topic), order_index=i))
                         q_count += 1
-            except Exception as e:
-                flash(f'AI generation failed: {e}. Add questions manually.', 'warning')
+            except Exception:
+                current_app.logger.exception('AI question generation failed for quiz_id=%s', quiz.id)
+                flash('AI question generation failed. Add questions manually.', 'warning')
         else:
             texts = request.form.getlist('q_text[]')
             a_opts = request.form.getlist('q_a[]')
@@ -295,11 +299,13 @@ def toggle_quiz(qid):
 @login_required
 @admin_required
 def delete_quiz(qid):
+    """Soft-delete a quiz by deactivating it."""
     q = Quiz.query.get_or_404(qid)
     title = q.title
-    db.session.delete(q); db.session.commit()
+    q.is_active = False
+    db.session.commit()
     _log('delete_quiz', title)
-    flash(f'Quiz "{title}" deleted.', 'success')
+    flash(f'Quiz "{title}" archived.', 'success')
     return redirect(url_for('admin.quiz_list'))
 
 @admin_bp.route('/quizzes/<int:qid>/attempts')
@@ -370,13 +376,13 @@ def logs():
 @login_required
 @admin_required
 def chat_monitor():
-    rooms    = ChatRoom.query.order_by(ChatRoom.created_at.desc()).all()
+    rooms    = ChatRoom.query.filter_by(is_deleted=False).order_by(ChatRoom.created_at.desc()).all()
     room_id  = request.args.get('room_id', type=int)
     messages = []
     current_room = None
     if room_id:
-        current_room = ChatRoom.query.get(room_id)
-        messages = (ChatMessage.query.filter_by(room_id=room_id)
+        current_room = ChatRoom.query.filter_by(id=room_id, is_deleted=False).first()
+        messages = (ChatMessage.query.filter_by(room_id=room_id, is_deleted=False)
                     .order_by(ChatMessage.created_at.asc()).all())
     return render_template('admin/chat_monitor.html',
         rooms=rooms, messages=messages, current_room=current_room)
@@ -385,8 +391,12 @@ def chat_monitor():
 @login_required
 @admin_required
 def delete_message(msg_id):
-    msg = ChatMessage.query.get_or_404(msg_id)
-    db.session.delete(msg); db.session.commit()
+    """Soft-delete a chat message by redacting content."""
+    msg = ChatMessage.query.filter_by(id=msg_id, is_deleted=False).first_or_404()
+    msg.message = '[Archived by admin]'
+    msg.is_deleted = True
+    msg.deleted_at = datetime.utcnow()
+    db.session.commit()
     return jsonify({'ok': True})
 
 # ── Syllabi management (existing) ──────────────────────────────────────────────
@@ -429,7 +439,7 @@ def reprocess(syllabus_id):
 @admin_required
 def news_list():
     page = request.args.get('page', 1, type=int)
-    pagination = News.query.order_by(News.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+    pagination = News.query.filter_by(is_deleted=False).order_by(News.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
     return render_template('admin/news_list.html', pagination=pagination, news_items=pagination.items)
 
 
@@ -479,7 +489,7 @@ def news_add():
 @login_required
 @admin_required
 def news_edit(news_id):
-    news = News.query.get_or_404(news_id)
+    news = News.query.filter_by(id=news_id, is_deleted=False).first_or_404()
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         summary = request.form.get('summary', '').strip()
@@ -509,12 +519,19 @@ def news_edit(news_id):
 @login_required
 @admin_required
 def news_delete(news_id):
-    news = News.query.get_or_404(news_id)
+    """Soft-delete a news item by archiving instead of removing the row."""
+    news = News.query.filter_by(id=news_id, is_deleted=False).first_or_404()
     title = news.title
-    db.session.delete(news)
+    if not news.title.startswith('[ARCHIVED] '):
+        news.title = f'[ARCHIVED] {news.title}'
+    news.summary = None
+    news.content = '[Archived by admin]'
+    news.image_url = None
+    news.is_deleted = True
+    news.deleted_at = datetime.utcnow()
     db.session.commit()
     _log('news_delete', title)
-    flash('News article deleted.', 'success')
+    flash('News article archived.', 'success')
     return redirect(url_for('admin.news_list'))
 
 
@@ -524,7 +541,7 @@ def news_delete(news_id):
 @login_required
 @admin_required
 def testimonials_list():
-    testimonials = Testimonial.query.order_by(Testimonial.created_at.desc()).all()
+    testimonials = Testimonial.query.filter_by(is_deleted=False).order_by(Testimonial.created_at.desc()).all()
     return render_template('admin/testimonials_list.html', testimonials=testimonials)
 
 
@@ -556,12 +573,18 @@ def testimonials_add():
 @login_required
 @admin_required
 def testimonials_delete(testimonial_id):
-    t = Testimonial.query.get_or_404(testimonial_id)
+    """Soft-delete a testimonial by archiving visible content."""
+    t = Testimonial.query.filter_by(id=testimonial_id, is_deleted=False).first_or_404()
     name = t.name
-    db.session.delete(t)
+    if not t.name.startswith('[ARCHIVED] '):
+        t.name = f'[ARCHIVED] {t.name}'
+    t.feedback = '[Archived by admin]'
+    t.photo_url = None
+    t.is_deleted = True
+    t.deleted_at = datetime.utcnow()
     db.session.commit()
     _log('testimonial_delete', name)
-    flash('Testimonial deleted.', 'success')
+    flash('Testimonial archived.', 'success')
     return redirect(url_for('admin.testimonials_list'))
 
 
@@ -571,7 +594,7 @@ def testimonials_delete(testimonial_id):
 @login_required
 @admin_required
 def messages():
-    msgs = ContactMessage.query.order_by(ContactMessage.created_at.desc()).all()
+    msgs = ContactMessage.query.filter_by(is_deleted=False).order_by(ContactMessage.created_at.desc()).all()
     return render_template('admin/messages.html', messages=msgs)
 
 
@@ -579,7 +602,7 @@ def messages():
 @login_required
 @admin_required
 def messages_mark_read(message_id):
-    m = ContactMessage.query.get_or_404(message_id)
+    m = ContactMessage.query.filter_by(id=message_id, is_deleted=False).first_or_404()
     m.is_read = True
     db.session.commit()
     _log('message_read', m.email)

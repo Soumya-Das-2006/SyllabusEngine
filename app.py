@@ -1,10 +1,12 @@
+import os
+
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from sqlalchemy.exc import IntegrityError
 from config import Config
 from dotenv import load_dotenv
-from extensions import db, login_manager
+from extensions import db, login_manager, migrate
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -17,6 +19,7 @@ def create_app():
     app.config.from_object(Config)
 
     db.init_app(app)
+    migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
@@ -65,13 +68,18 @@ def create_app():
         db.create_all()
         try:
             from database.models import User, ChatRoom
-            admin_email = "soumya@admin.com"
-            admin_user  = User.query.filter_by(email=admin_email).first()
-            if not admin_user:
-                admin_user = User(email=admin_email, name="Soumya", role='admin', is_admin=True)
-                admin_user.set_password("Soumya@290806")
-                db.session.add(admin_user)
-                db.session.commit()
+            admin_email = os.environ.get('BOOTSTRAP_ADMIN_EMAIL', '').strip()
+            admin_password = os.environ.get('BOOTSTRAP_ADMIN_PASSWORD', '')
+            admin_name = os.environ.get('BOOTSTRAP_ADMIN_NAME', 'Admin').strip() or 'Admin'
+
+            # Seed an admin only when bootstrap environment variables are explicitly provided.
+            if admin_email and admin_password:
+                admin_user = User.query.filter_by(email=admin_email).first()
+                if not admin_user:
+                    admin_user = User(email=admin_email, name=admin_name, role='admin', is_admin=True)
+                    admin_user.set_password(admin_password)
+                    db.session.add(admin_user)
+                    db.session.commit()
         except Exception as e:
             db.session.rollback()
             print(f"Admin setup: {e}")

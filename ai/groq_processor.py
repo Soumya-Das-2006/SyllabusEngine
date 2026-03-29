@@ -2,7 +2,13 @@ import json
 import os
 from groq import Groq
 
-client = Groq(api_key=os.environ.get('GROQ_API_KEY') or 'your-groq-api-key')
+def _get_client():
+    """Create a Groq client only when an API key is configured."""
+    api_key = os.environ.get('GROQ_API_KEY', '').strip()
+    if not api_key:
+        raise RuntimeError('GROQ_API_KEY is not configured')
+    return Groq(api_key=api_key)
+
 MODEL = "llama-3.3-70b-versatile"
 
 SYLLABUS_SYSTEM_PROMPT = """You are an expert academic syllabus analyzer called the "Syllabus-to-Success Engine".
@@ -137,27 +143,35 @@ RULES:
 def chat_with_assistant(system_prompt: str, messages: list) -> str:
     """Chat with the AI study assistant."""
     groq_messages = [{'role': 'system', 'content': system_prompt}] + messages
+    client = _get_client()
     response = client.chat.completions.create(
         model=MODEL,
         messages=groq_messages,
         max_tokens=1000,
-        temperature=0.7
+        temperature=0.7,
     )
-    return response.choices[0].message.content
+    content = response.choices[0].message.content if response.choices else None
+    if not content:
+        raise RuntimeError('Groq returned an empty response')
+    return content
 
 
 def _call_groq(prompt: str, temperature: float = 0.2) -> str:
     """Single Groq API call."""
+    client = _get_client()
     response = client.chat.completions.create(
         model=MODEL,
         messages=[
             {'role': 'system', 'content': SYLLABUS_SYSTEM_PROMPT},
-            {'role': 'user', 'content': prompt}
+            {'role': 'user', 'content': prompt},
         ],
         max_tokens=4000,
-        temperature=temperature
+        temperature=temperature,
     )
-    return response.choices[0].message.content
+    content = response.choices[0].message.content if response.choices else None
+    if not content:
+        raise RuntimeError('Groq returned an empty response')
+    return content
 
 
 def _safe_parse(text: str) -> dict:

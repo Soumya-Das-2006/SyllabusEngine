@@ -1,9 +1,5 @@
-/* Futuristic UI Upgrade - Tailwind + Glassmorphism/Neon */
+/* Futuristic UI Upgrade - Glassmorphism/Neon (no runtime Tailwind imports) */
 /* Layered on top of main.css - Production Ready */
-
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
 
 /* Design System - Exact Task Match */
 @layer base {

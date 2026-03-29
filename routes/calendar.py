@@ -12,7 +12,7 @@ calendar_bp = Blueprint('calendar', __name__)
 @calendar_bp.route('/subjects/<int:subject_id>/calendar')
 @login_required
 def view(subject_id):
-    subject     = Subject.query.filter_by(id=subject_id, user_id=current_user.id).first_or_404()
+    subject     = Subject.query.filter_by(id=subject_id, user_id=current_user.id, is_deleted=False).first_or_404()
     assignments = Assignment.query.filter_by(subject_id=subject_id).all()
     exams       = []
     plan        = subject.latest_plan
@@ -59,13 +59,21 @@ def view(subject_id):
         events=json.dumps(events),
     )
 
+
+@calendar_bp.route('/subjects/u/<string:subject_uuid>/calendar')
+@login_required
+def view_by_uuid(subject_uuid):
+    """UUID-first calendar route with fallback to existing integer endpoint."""
+    subject = Subject.query.filter_by(uuid=subject_uuid, user_id=current_user.id, is_deleted=False).first_or_404()
+    return redirect(url_for('calendar.view', subject_id=subject.id))
+
 @calendar_bp.route('/calendar')
 @login_required
 def calendar_view():
     """Top-level calendar — redirect to first subject or show picker."""
-    first = Subject.query.filter_by(user_id=current_user.id, is_active=True).first()
+    first = Subject.query.filter_by(user_id=current_user.id, is_active=True, is_deleted=False).first()
     if first:
         return redirect(url_for('calendar.view', subject_id=first.id))
-    subjects = Subject.query.filter_by(user_id=current_user.id, is_active=True).all()
+    subjects = Subject.query.filter_by(user_id=current_user.id, is_active=True, is_deleted=False).all()
     return render_template('dashboard/calendar.html', subjects=subjects, events=[])
 

@@ -8,15 +8,20 @@ subjects_bp = Blueprint('subjects', __name__)
 @subjects_bp.route('/subjects')
 @login_required
 def index():
-    subjects = Subject.query.filter_by(user_id=current_user.id, is_active=True).order_by(Subject.created_at.desc()).all()
+    subjects = Subject.query.filter_by(user_id=current_user.id, is_active=True, is_deleted=False).order_by(Subject.created_at.desc()).all()
     return render_template('dashboard/subjects.html', subjects=subjects)
 
 @subjects_bp.route('/subjects/add', methods=['POST'])
 @login_required
 def add():
+    """Create a new subject for the current user after validating form input."""
     name = request.form.get('name', '').strip()
     color = request.form.get('color', '#6366f1')
-    semester_length = int(request.form.get('semester_length', 15))
+    try:
+        semester_length = int(request.form.get('semester_length', 15))
+    except (TypeError, ValueError):
+        semester_length = 15
+    semester_length = max(1, min(semester_length, 52))
     start_date_str = request.form.get('start_date', '')
 
     if not name:
@@ -28,7 +33,7 @@ def add():
         try:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
         except ValueError:
-            pass
+            flash('Invalid start date format. Please use YYYY-MM-DD.', 'warning')
 
     subject = Subject(
         user_id=current_user.id,
@@ -45,7 +50,7 @@ def add():
 @subjects_bp.route('/subjects/<int:subject_id>/delete', methods=['POST'])
 @login_required
 def delete(subject_id):
-    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id).first_or_404()
+    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id, is_deleted=False).first_or_404()
     subject.is_active = False
     db.session.commit()
     flash(f'Subject "{subject.name}" archived.', 'success')
@@ -54,5 +59,13 @@ def delete(subject_id):
 @subjects_bp.route('/subjects/<int:subject_id>')
 @login_required
 def view(subject_id):
-    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id).first_or_404()
+    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id, is_deleted=False).first_or_404()
     return redirect(url_for('study_plan.week_grid', subject_id=subject_id))
+
+
+@subjects_bp.route('/subjects/u/<string:subject_uuid>')
+@login_required
+def view_by_uuid(subject_uuid):
+    """Resolve a subject by UUID for safer non-sequential URL access."""
+    subject = Subject.query.filter_by(uuid=subject_uuid, user_id=current_user.id, is_deleted=False).first_or_404()
+    return redirect(url_for('study_plan.week_grid', subject_id=subject.id))

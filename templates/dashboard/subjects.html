@@ -43,9 +43,9 @@
 
       <div class="sfcard-actions">
         {% if s.latest_plan %}
-          <a href="{{ url_for('study_plan.week_grid', subject_id=s.id) }}" class="btn btn-primary btn-sm">View Plan</a>
-          <a href="{{ url_for('study_plan.progress', subject_id=s.id) }}" class="btn btn-outline btn-sm">Progress</a>
-          <a href="{{ url_for('calendar.view', subject_id=s.id) }}" class="btn btn-ghost btn-sm">📅 Calendar</a>
+          <a href="{{ url_for('study_plan.week_grid_by_uuid', subject_uuid=s.uuid) }}" class="btn btn-primary btn-sm">View Plan</a>
+          <a href="{{ url_for('study_plan.progress_by_uuid', subject_uuid=s.uuid) }}" class="btn btn-outline btn-sm">Progress</a>
+          <a href="{{ url_for('calendar.view_by_uuid', subject_uuid=s.uuid) }}" class="btn btn-ghost btn-sm">📅 Calendar</a>
           <a href="{{ url_for('assistant.chat_page', subject_id=s.id) }}" class="btn btn-ghost btn-sm">🤖 Kai</a>
         {% else %}
           <a href="{{ url_for('upload.upload_page', subject_id=s.id) }}" class="btn btn-primary btn-sm">Upload Syllabus →</a>

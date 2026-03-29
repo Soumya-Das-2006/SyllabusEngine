@@ -24,33 +24,36 @@ def upload_page(subject_id=None):
 @upload_bp.route('/upload/process', methods=['POST'])
 @login_required
 def process_upload():
+    """Validate and queue a syllabus PDF for background processing."""
     subject_id = request.form.get('subject_id')
-    if not subject_id:
+    try:
+        subject_id_int = int(subject_id)
+    except (TypeError, ValueError):
         flash('Please select a subject.', 'error')
         return redirect(url_for('upload.upload_page'))
 
-    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id).first_or_404()
+    subject = Subject.query.filter_by(id=subject_id_int, user_id=current_user.id).first_or_404()
 
     if 'file' not in request.files:
         flash('No file selected.', 'error')
-        return redirect(url_for('upload.upload_page', subject_id=subject_id))
+        return redirect(url_for('upload.upload_page', subject_id=subject_id_int))
 
     file = request.files['file']
     if file.filename == '' or not allowed_file(file.filename):
         flash('Please upload a valid PDF file.', 'error')
-        return redirect(url_for('upload.upload_page', subject_id=subject_id))
+        return redirect(url_for('upload.upload_page', subject_id=subject_id_int))
 
     # Update start_date if provided
     start_date_str = request.form.get('start_date', '')
-    semester_length = request.form.get('semester_length', subject.semester_length)
+    semester_length_raw = request.form.get('semester_length', subject.semester_length)
     if start_date_str:
         from datetime import datetime
         try:
             subject.start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            subject.semester_length = int(semester_length)
+            subject.semester_length = max(1, min(int(semester_length_raw), 52))
             db.session.commit()
         except ValueError:
-            pass
+            flash('Invalid date or semester length input. Kept previous subject settings.', 'warning')
 
     filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
     upload_folder = current_app.config['UPLOAD_FOLDER']
@@ -131,17 +134,28 @@ def confirmation(syllabus_id):
 @upload_bp.route('/upload/confirm/<int:syllabus_id>', methods=['POST'])
 @login_required
 def confirm_plan(syllabus_id):
+    """Persist a confirmed study plan after validating payload structure."""
     syllabus = Syllabus.query.get_or_404(syllabus_id)
     subject = Subject.query.filter_by(id=syllabus.subject_id, user_id=current_user.id).first_or_404()
 
     import json
     from datetime import datetime, date
 
-    confirmed_data = request.get_json()
+    confirmed_data = request.get_json(silent=True)
+
+    def safe_json_parse(data):
+        try:
+            return json.loads(data) if data else {}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+
     if not confirmed_data:
         if syllabus.processing_status != 'awaiting_confirmation':
             return jsonify({'error': 'Syllabus not confirmed yet'}), 400
         confirmed_data = safe_json_parse(syllabus.raw_ai_output)
+
+    if not isinstance(confirmed_data, dict):
+        return jsonify({'error': 'Invalid confirmation payload.'}), 400
 
     # Build study plan from confirmed data
     plan = StudyPlan(
@@ -254,7 +268,8 @@ def process_syllabus_background(app, syllabus_id):
             syllabus.processing_status = 'awaiting_confirmation'
             db.session.commit()
 
-        except Exception as e:
+        except Exception:
             syllabus.processing_status = 'failed'
-            syllabus.error_message = str(e)
+            syllabus.error_message = 'Syllabus processing failed unexpectedly. Please upload again or contact support.'
             db.session.commit()
+            app.logger.exception('Syllabus processing failed for syllabus_id=%s', syllabus_id)

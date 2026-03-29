@@ -59,7 +59,7 @@ def _offline_questions(topic, difficulty, num_q):
 def _get_or_create_quiz(topic, difficulty, num_q, user_id, subject_id=None):
     import hashlib
     cache_key = hashlib.md5(f"{topic}:{difficulty}:{num_q}".encode()).hexdigest()
-    existing  = Quiz.query.filter_by(cache_key=cache_key).first()
+    existing  = Quiz.query.filter_by(cache_key=cache_key, is_deleted=False).first()
     if existing and list(existing.questions):
         return existing
 
@@ -108,6 +108,7 @@ def quiz_home():
         assigned_quizzes = (Quiz.query
             .filter(Quiz.subject_id.in_(subject_ids))
             .filter(Quiz.is_active.is_(True))
+            .filter(Quiz.is_deleted.is_(False))
             .filter(Quiz.cache_key.is_(None))
             .order_by(Quiz.created_at.desc())
             .limit(10)
@@ -162,7 +163,7 @@ def quiz_start():
 @login_required
 def assigned_quiz_start(quiz_id):
     """Start an admin-created quiz that has been assigned to the student."""
-    quiz = Quiz.query.get_or_404(quiz_id)
+    quiz = Quiz.query.filter_by(id=quiz_id, is_deleted=False).first_or_404()
 
     # Only allow admin-created quizzes (no cache_key) for subjects owned by this user
     if quiz.cache_key is not None:
@@ -196,6 +197,14 @@ def assigned_quiz_start(quiz_id):
     return render_template('quiz/quiz_take.html', quiz=quiz, attempt=attempt, questions=qs)
 
 
+@quiz_bp.route('/assigned/u/<string:quiz_uuid>/start')
+@login_required
+def assigned_quiz_start_uuid(quiz_uuid):
+    """UUID variant of assigned quiz start route for non-sequential URLs."""
+    quiz = Quiz.query.filter_by(uuid=quiz_uuid, is_deleted=False).first_or_404()
+    return redirect(url_for('quiz.assigned_quiz_start', quiz_id=quiz.id))
+
+
 @quiz_bp.route('/<int:quiz_id>/violation', methods=['POST'])
 @login_required
 def log_violation(quiz_id):
@@ -204,7 +213,7 @@ def log_violation(quiz_id):
         user_id=current_user.id, quiz_id=quiz_id, status='in_progress').first()
     if not attempt:
         return jsonify({'error': 'No active attempt'}), 400
-    quiz = Quiz.query.get_or_404(quiz_id)
+    quiz = Quiz.query.filter_by(id=quiz_id, is_deleted=False).first_or_404()
     vlog = json.loads(attempt.violation_log or '[]')
     vlog.append({'type': data.get('type', 'unknown'),
                  'detail': data.get('detail', ''),
@@ -247,7 +256,7 @@ def quiz_submit(quiz_id=None):
         answers_in = {}
         auto_sub   = False
 
-    quiz      = Quiz.query.get_or_404(quiz_id_in)
+    quiz      = Quiz.query.filter_by(id=quiz_id_in, is_deleted=False).first_or_404()
     questions = list(quiz.questions)
 
     attempt = UserQuizAttempt.query.filter_by(

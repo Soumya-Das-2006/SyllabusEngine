@@ -16,7 +16,7 @@
       <h3 style="margin-bottom:.4rem;font-size:1rem">{{ c.title }}</h3>
       <div class="cert-number">{{ c.cert_number }}</div>
       <div class="small text-muted" style="margin-top:.5rem">Issued {{ c.issued_at.strftime('%B %d, %Y') }}</div>
-      <a href="{{ url_for('certificates.download', cert_id=c.id) }}" class="btn btn-primary btn-sm" style="margin-top:1rem">
+      <a href="{{ url_for('certificates.download_by_uuid', cert_uuid=c.uuid) }}" class="btn btn-primary btn-sm" style="margin-top:1rem">
         📥 Download PDF
       </a>
     </div>

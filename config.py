@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import timedelta
 from dotenv import load_dotenv
 
@@ -7,7 +8,7 @@ load_dotenv()   # loads .env file when running locally
 
 class Config:
     # ── Core ──────────────────────────────────────────────────────────────
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'syllabus-engine-dev-secret-change-in-production')
+    SECRET_KEY = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
 
     # ── Database ──────────────────────────────────────────────────────────
     # SQLite locally, PostgreSQL on Render (DATABASE_URL env var set automatically)

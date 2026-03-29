@@ -9,7 +9,7 @@ study_plan_bp = Blueprint('study_plan', __name__)
 @study_plan_bp.route('/subjects/<int:subject_id>/plan')
 @login_required
 def week_grid(subject_id):
-    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id).first_or_404()
+    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id, is_deleted=False).first_or_404()
     plan = subject.latest_plan
     if not plan:
         return redirect(url_for('upload.upload_page', subject_id=subject_id))
@@ -50,10 +50,18 @@ def week_grid(subject_id):
     )
 
 
+@study_plan_bp.route('/subjects/u/<string:subject_uuid>/plan')
+@login_required
+def week_grid_by_uuid(subject_uuid):
+    """UUID-first study plan entrypoint with compatibility fallback to int route."""
+    subject = Subject.query.filter_by(uuid=subject_uuid, user_id=current_user.id, is_deleted=False).first_or_404()
+    return redirect(url_for('study_plan.week_grid', subject_id=subject.id))
+
+
 @study_plan_bp.route('/subjects/<int:subject_id>/plan/week/<int:week_num>')
 @login_required
 def week_detail(subject_id, week_num):
-    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id).first_or_404()
+    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id, is_deleted=False).first_or_404()
     plan = subject.latest_plan
     if not plan:
         return redirect(url_for('upload.upload_page', subject_id=subject_id))
@@ -82,6 +90,14 @@ def week_detail(subject_id, week_num):
         prev_week=week_num - 1 if week_num > 1 else None,
         next_week=week_num + 1 if week_num < total_weeks else None,
     )
+
+
+@study_plan_bp.route('/subjects/u/<string:subject_uuid>/plan/week/<int:week_num>')
+@login_required
+def week_detail_by_uuid(subject_uuid, week_num):
+    """UUID-first week detail route with compatibility fallback."""
+    subject = Subject.query.filter_by(uuid=subject_uuid, user_id=current_user.id, is_deleted=False).first_or_404()
+    return redirect(url_for('study_plan.week_detail', subject_id=subject.id, week_num=week_num))
 
 
 @study_plan_bp.route('/api/progress/mark', methods=['POST'])
@@ -137,7 +153,7 @@ def mark_progress():
 @study_plan_bp.route('/subjects/<int:subject_id>/progress')
 @login_required
 def progress(subject_id):
-    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id).first_or_404()
+    subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id, is_deleted=False).first_or_404()
     plan    = subject.latest_plan
     weeks   = (
         Week.query.filter_by(study_plan_id=plan.id).order_by(Week.week_number).all()
@@ -154,3 +170,11 @@ def progress(subject_id):
         total_assignments=total_assignments,
         completed_assignments=completed_assignments,
     )
+
+
+@study_plan_bp.route('/subjects/u/<string:subject_uuid>/progress')
+@login_required
+def progress_by_uuid(subject_uuid):
+    """UUID-first progress route with compatibility fallback."""
+    subject = Subject.query.filter_by(uuid=subject_uuid, user_id=current_user.id, is_deleted=False).first_or_404()
+    return redirect(url_for('study_plan.progress', subject_id=subject.id))

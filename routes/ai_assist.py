@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required, current_user
 from database.models import Subject, AIConversation, Week, Assignment, Exam, db
 from datetime import date
@@ -223,8 +223,9 @@ def pdf_extract():
             'ocr_used': ocr_used,
         })
 
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        current_app.logger.exception('AI assist PDF extract failed for user_id=%s', current_user.id)
+        return jsonify({'error': 'Could not process this PDF right now. Please try again.'}), 500
 
     finally:
         try:
@@ -238,7 +239,7 @@ def pdf_extract():
 @ai_assist_bp.route('/api/assistant/chat', methods=['POST'])
 @login_required
 def chat():
-    data       = request.get_json()
+    data       = request.get_json(silent=True) or {}
     subject_id = data.get('subject_id')
     message    = data.get('message', '').strip()
     mode       = data.get('mode', 'explain')
@@ -343,11 +344,11 @@ def chat():
         # Save to DB (save original message, not the PDF-injected version)
         db.session.add(AIConversation(
             user_id=current_user.id, subject_id=subject_id,
-            role='user', message=message, mode=mode,
+            role='user', message=message,
         ))
         ai_entry = AIConversation(
             user_id=current_user.id, subject_id=subject_id,
-            role='assistant', message=response, mode=mode,
+            role='assistant', message=response,
         )
         db.session.add(ai_entry)
         db.session.commit()
@@ -358,8 +359,9 @@ def chat():
             'mode':       mode,
         })
 
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        current_app.logger.exception('AI assist chat failed for user_id=%s', current_user.id)
+        return jsonify({'error': 'Something went wrong while generating the response. Please try again.'}), 500
 
 
 # ── Session API ───────────────────────────────────────────────────────────────
@@ -377,7 +379,7 @@ def get_session(session_id):
 
     return jsonify({
         'id':       session_id,
-        'mode':     msg.mode or 'explain',
+        'mode':     getattr(msg, 'mode', None) or 'explain',
         'topic':    msg.message if msg.role == 'user' else '',
         'messages': [{'role': h.role, 'content': h.message} for h in history],
     })

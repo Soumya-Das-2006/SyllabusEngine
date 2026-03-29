@@ -217,7 +217,7 @@
           <a href="{{ url_for('notes.index') }}" class="btn btn-ghost btn-sm">All notes</a>
         </div>
         {% for n in recent_notes %}
-        <a href="{{ url_for('notes.edit', note_id=n.id) }}" style="display:block;text-decoration:none;
+        <a href="{{ url_for('notes.edit_by_uuid', note_uuid=n.uuid) }}" style="display:block;text-decoration:none;
              padding:.55rem 0;border-bottom:1px solid var(--border)">
           <div class="small bold" style="color:var(--text)">{{ n.title|truncate(40) }}</div>
           <div class="small text-muted">{{ n.updated_at.strftime('%b %d') }}</div>
