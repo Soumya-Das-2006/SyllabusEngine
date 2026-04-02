@@ -68,7 +68,7 @@ class User(UserMixin, db.Model):
 
     @property
     def unread_notifications(self):
-        return self.notifications.filter_by(is_read=False).count()
+        return Notification.query.filter_by(user_id=self.id, is_read=False).count()
 
     def generate_reset_token(self):
         self.reset_token = secrets.token_urlsafe(32)

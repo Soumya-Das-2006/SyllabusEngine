@@ -10,7 +10,12 @@
     <h2 class="study-nav-title">Study Material</h2>
     <div class="study-nav-right">
       {% if subjects %}
-      <select id="subject-select" class="input study-nav-select" onchange="changeSubject(this.value)">
+            {% set ai_assist_base_url = url_for('assistant.ai_assist_page') %}
+            {% set ai_assist_subject_template = url_for('assistant.ai_assist_page', subject_id=0) %}
+            <select id="subject-select" class="input study-nav-select"
+              data-all-url="{{ ai_assist_base_url }}"
+              data-subject-url-template="{{ ai_assist_subject_template }}"
+              onchange="changeSubject(this.value)">
         <option value="">All subjects</option>
         {% for s in subjects %}
           <option value="{{ s.id }}" {% if subject and subject.id == s.id %}selected{% endif %}>
@@ -597,8 +602,21 @@ function newSession() {
 }
 
 function changeSubject(id) {
-  if (id) window.location.href = `/ai_assist/${id}`;
-  else window.location.href = '/ai_assist';
+  const select = document.getElementById('subject-select');
+  const allUrl = select?.dataset.allUrl || '/ai_assist';
+  const subjectTemplate = select?.dataset.subjectUrlTemplate || `${allUrl}/0`;
+
+  if (!id) {
+    window.location.href = allUrl;
+    return;
+  }
+
+  const encodedId = encodeURIComponent(id);
+  const targetUrl = /\/0$/.test(subjectTemplate)
+    ? subjectTemplate.replace(/\/0$/, `/${encodedId}`)
+    : `${allUrl}/${encodedId}`;
+
+  window.location.href = targetUrl;
 }
 
 async function loadSession(id) {

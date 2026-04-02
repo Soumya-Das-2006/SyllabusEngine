@@ -22,7 +22,9 @@
         <div class="password-container">
           <input type="password" id="password" name="password"
                  placeholder="Your password" required autocomplete="current-password">
-          <span class="password-toggle" onclick="togglePasswordVisibility('password')">👁️</span>
+          <button type="button" class="password-toggle" onclick="togglePasswordVisibility('password')" aria-label="Show password" aria-pressed="false" title="Show password">
+            <i class="fa-solid fa-eye" aria-hidden="true"></i>
+          </button>
         </div>
       </div>
       <div class="forgot-password">

@@ -95,14 +95,21 @@ function togglePasswordVisibility(fieldId) {
   const toggle = field.parentElement.querySelector('.password-toggle');
   if (!toggle) return;
 
-  if (field.type === 'password') {
-    field.type = 'text';
-    toggle.textContent = 'Hide';
-    toggle.title = 'Hide password';
+  const showingPassword = field.type === 'password';
+  field.type = showingPassword ? 'text' : 'password';
+
+  const nextLabel = showingPassword ? 'Hide password' : 'Show password';
+  const nextIcon = showingPassword ? 'fa-eye-slash' : 'fa-eye';
+
+  toggle.setAttribute('aria-label', nextLabel);
+  toggle.setAttribute('aria-pressed', String(showingPassword));
+  toggle.title = nextLabel;
+
+  const icon = toggle.querySelector('i');
+  if (icon) {
+    icon.className = `fa-solid ${nextIcon}`;
   } else {
-    field.type = 'password';
-    toggle.textContent = 'Show';
-    toggle.title = 'Show password';
+    toggle.innerHTML = `<i class="fa-solid ${nextIcon}" aria-hidden="true"></i>`;
   }
 }
 
